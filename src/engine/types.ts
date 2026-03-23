@@ -180,6 +180,8 @@ export interface ProfileRule {
 export interface ProfileRuleLogic {
   // Minimum score thresholds to match this profile
   scoreThresholds?: Partial<Record<ScoringDimensionKey, number>>;
+  // Maximum score ceilings — dimension must be AT OR BELOW this value
+  scoreCeilings?: Partial<Record<ScoringDimensionKey, number>>;
   // KPI thresholds
   kpiThresholds?: Partial<Record<KPIKey, number>>;
   // Hidden trait matches

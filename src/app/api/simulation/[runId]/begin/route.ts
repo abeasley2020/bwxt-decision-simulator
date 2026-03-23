@@ -1,15 +1,18 @@
 /**
  * POST /api/simulation/[runId]/begin
- * Marks a simulation run as in_progress, records started_at, takes initial KPI snapshot.
+ *
+ * Marks a simulation run as in_progress, records the started_at timestamp,
+ * saves the participant's self-assessment, and takes an initial KPI snapshot.
+ * Expects a multipart/form-data body (HTML form POST).
+ * Responds with a redirect to Round 1.
  */
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildInitialKPIs } from "@/engine/kpi";
-import { buildInitialScores } from "@/engine/scoring";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: { runId: string } }
 ) {
   const supabase = createClient();
@@ -31,17 +34,31 @@ export async function POST(
 
   if (!run) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (run.status !== "not_started") {
-    return NextResponse.json(
-      { error: "Simulation already started" },
-      { status: 400 }
-    );
+    // Already started — redirect to where they should be
+    return new Response(null, {
+      status: 303,
+      headers: { Location: `/simulation/${run.id}/round/1` },
+    });
+  }
+
+  // Read self-assessment from form data (optional — gracefully degrade if missing)
+  let selfAssessment: Record<string, string | null> = {};
+  try {
+    const formData = await request.formData();
+    selfAssessment = {
+      q1_financial_confidence: formData.get("sa_q1")?.toString() ?? null,
+      q2_talent_experience: formData.get("sa_q2")?.toString() ?? null,
+      q3_regulatory_familiarity: formData.get("sa_q3")?.toString() ?? null,
+      q4_primary_concern: formData.get("sa_q4")?.toString() ?? null,
+    };
+  } catch {
+    // Body unreadable — continue without self-assessment
   }
 
   const now = new Date().toISOString();
   const initialKPIs = buildInitialKPIs();
-  const initialScores = buildInitialScores();
 
-  // Mark run as in_progress
+  // Mark run as in_progress and save self-assessment
   const { error: updateError } = await supabase
     .from("simulation_runs")
     .update({
@@ -49,6 +66,7 @@ export async function POST(
       current_round_number: 1,
       started_at: now,
       last_active_at: now,
+      self_assessment_json: selfAssessment,
     })
     .eq("id", run.id);
 
@@ -68,8 +86,8 @@ export async function POST(
     console.error("Failed to insert initial KPI snapshot:", kpiError.message);
   }
 
-  // Redirect to Round 1
-  return NextResponse.redirect(
-    new URL(`/simulation/${run.id}/round/1`, process.env.NEXT_PUBLIC_APP_URL ?? "")
-  );
+  return new Response(null, {
+    status: 303,
+    headers: { Location: `/simulation/${run.id}/round/1` },
+  });
 }

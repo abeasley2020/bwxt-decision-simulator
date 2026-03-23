@@ -59,10 +59,17 @@ function ruleMatches(
   scores: ScoreValues,
   traits: string[]
 ): boolean {
-  // Score thresholds: all must be met
+  // Score thresholds: all must be met (minimum values)
   if (logic.scoreThresholds) {
     for (const [key, threshold] of Object.entries(logic.scoreThresholds)) {
       if ((scores[key as ScoringDimensionKey] ?? 0) < threshold) return false;
+    }
+  }
+
+  // Score ceilings: dimension must be at or below this value
+  if (logic.scoreCeilings) {
+    for (const [key, ceiling] of Object.entries(logic.scoreCeilings)) {
+      if ((scores[key as ScoringDimensionKey] ?? 0) > ceiling) return false;
     }
   }
 

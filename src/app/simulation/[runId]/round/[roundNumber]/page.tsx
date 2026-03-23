@@ -1,11 +1,20 @@
 /**
- * Round page — shows briefing, event, and decision forms for one round.
- * Placeholder layout — decision UI components will be built in Slice 2.
+ * Round page — loads scenario round content and renders the interactive
+ * decision form.
+ *
+ * Static content (briefing, event) is server-rendered.
+ * Interactive decisions are delegated to the RoundForm client component.
+ * Scenario content is loaded from authored content files — never hardcoded
+ * in this file.
+ *
+ * WCAG: semantic landmark regions; correct heading hierarchy (h1 → h2 → h3);
+ * all interactive elements are in RoundForm which owns ARIA/keyboard concerns.
  */
 
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
+import RoundForm from "@/components/round/RoundForm";
 
 interface Props {
   params: { runId: string; roundNumber: string };
@@ -30,8 +39,20 @@ export default async function RoundPage({ params }: Props) {
     .maybeSingle();
 
   if (!run) notFound();
-  if (run.status === "completed") redirect(`/simulation/${run.id}/dashboard`);
-  if (run.status === "not_started") redirect(`/simulation/${run.id}/orientation`);
+  if (run.status === "completed") redirect(`/simulation/${run.id}/complete`);
+  if (run.status === "not_started") {
+    redirect(`/simulation/${run.id}/orientation`);
+  }
+
+  // If this round has already been submitted, send to its consequence page
+  if (roundNumber < run.current_round_number) {
+    redirect(`/simulation/${run.id}/round/${roundNumber}/consequence`);
+  }
+
+  // If the participant is on a different round, redirect to the correct one
+  if (roundNumber !== run.current_round_number) {
+    redirect(`/simulation/${run.id}/round/${run.current_round_number}`);
+  }
 
   const round = IRON_HORIZON_VERSION.rounds.find(
     (r) => r.roundNumber === roundNumber
@@ -39,89 +60,105 @@ export default async function RoundPage({ params }: Props) {
   if (!round) notFound();
 
   return (
-    <main className="min-h-screen bg-brand-light">
-      {/* Top bar */}
-      <div className="bg-brand-navy text-white px-6 py-4 flex items-center justify-between">
-        <div>
-          <span className="text-brand-gold text-xs font-semibold tracking-widest uppercase mr-3">
-            Round {round.roundNumber} of 3
-          </span>
-          <span className="text-white font-semibold">{round.title}</span>
+    <div className="min-h-screen bg-brand-light">
+      {/* ── Header / progress bar ──────────────────────────────────────── */}
+      <header className="bg-brand-navy text-white">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+          <div>
+            <div
+              className="text-brand-gold text-xs font-semibold tracking-widest uppercase mb-0.5"
+              aria-hidden="true"
+            >
+              Round {round.roundNumber} of 3
+            </div>
+            <h1 className="text-white font-bold text-lg leading-tight">
+              {round.title}
+            </h1>
+          </div>
+          <div className="text-white/40 text-xs text-right hidden sm:block">
+            <div>Operation Iron Horizon</div>
+            <div className="mt-0.5 flex gap-1" aria-label="Round progress">
+              {[1, 2, 3].map((n) => (
+                <div
+                  key={n}
+                  className={`h-1 w-8 rounded-full ${
+                    n <= roundNumber ? "bg-brand-gold" : "bg-white/20"
+                  }`}
+                  aria-hidden="true"
+                />
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="text-white/40 text-sm">Operation Iron Horizon</div>
-      </div>
+      </header>
 
-      <div className="max-w-4xl mx-auto px-6 py-10">
-        {/* Briefing */}
-        <section className="mb-10">
-          <h2 className="text-brand-navy text-xl font-bold mb-4">Situation Briefing</h2>
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            {round.briefingContent.split("\n").map((line, i) => (
-              <p key={i} className="text-gray-700 text-sm leading-relaxed mb-2">
-                {line}
-              </p>
-            ))}
+      <main className="max-w-4xl mx-auto px-6 py-8">
+        {/* ── Situation briefing ──────────────────────────────────────── */}
+        <section aria-labelledby="briefing-heading" className="mb-8">
+          <h2
+            id="briefing-heading"
+            className="text-brand-navy text-lg font-bold mb-3"
+          >
+            Situation Briefing
+          </h2>
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            {round.briefingContent
+              .split("\n")
+              .filter(Boolean)
+              .map((line, i) => (
+                <p
+                  key={i}
+                  className="text-gray-700 text-sm leading-relaxed mb-2 last:mb-0"
+                >
+                  {line}
+                </p>
+              ))}
           </div>
         </section>
 
-        {/* Event / Trigger */}
+        {/* ── Event / trigger ─────────────────────────────────────────── */}
         {round.eventContent && (
-          <section className="mb-10">
-            <div className="bg-brand-navy/5 border-l-4 border-brand-gold rounded-r-lg p-5">
-              <p className="text-brand-navy text-sm font-medium italic">
-                {round.eventContent}
-              </p>
+          <section aria-labelledby="event-heading" className="mb-8">
+            <h2 id="event-heading" className="sr-only">
+              Triggering Event
+            </h2>
+            <div className="border-l-4 border-brand-gold bg-white rounded-r-xl p-5">
+              <div
+                className="text-xs font-semibold text-brand-gold uppercase tracking-wide mb-2"
+                aria-hidden="true"
+              >
+                Executive Trigger
+              </div>
+              {round.eventContent
+                .split("\n")
+                .filter(Boolean)
+                .map((line, i) => (
+                  <p
+                    key={i}
+                    className="text-brand-navy text-sm font-medium leading-relaxed"
+                  >
+                    {line}
+                  </p>
+                ))}
             </div>
           </section>
         )}
 
-        {/* Decisions placeholder */}
-        <section>
-          <h2 className="text-brand-navy text-xl font-bold mb-6">
+        {/* ── Interactive decisions ───────────────────────────────────── */}
+        <section aria-labelledby="decisions-heading">
+          <h2
+            id="decisions-heading"
+            className="text-brand-navy text-lg font-bold mb-6"
+          >
             Your Decisions
           </h2>
-          <div className="space-y-6">
-            {round.decisions.map((decision) => (
-              <div
-                key={decision.key}
-                className="bg-white border border-gray-200 rounded-lg p-6"
-              >
-                <div className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">
-                  {decision.decisionType.replace(/_/g, " ")}
-                  {decision.minChoices && decision.maxChoices
-                    ? ` · Select ${decision.minChoices === decision.maxChoices ? decision.minChoices : `${decision.minChoices}–${decision.maxChoices}`}`
-                    : ""}
-                </div>
-                <h3 className="text-brand-navy font-semibold text-base mb-2">
-                  {decision.title}
-                </h3>
-                <p className="text-gray-600 text-sm mb-4">{decision.prompt}</p>
-
-                {/* Decision options placeholder */}
-                <div className="space-y-2">
-                  {decision.options.map((opt) => (
-                    <div
-                      key={opt.key}
-                      className="border border-gray-200 rounded-md p-4 hover:border-brand-blue hover:bg-blue-50/30 cursor-pointer transition-colors"
-                    >
-                      <div className="font-medium text-sm text-brand-navy mb-1">
-                        {opt.label}
-                      </div>
-                      <div className="text-xs text-gray-500">{opt.description}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Submit placeholder */}
-          <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 text-sm">
-            [Placeholder] Decision submission logic will be wired in Slice 2.
-            Full interactive form components, validation, and API submission are coming next.
-          </div>
+          <RoundForm
+            decisions={round.decisions}
+            runId={params.runId}
+            roundNumber={roundNumber}
+          />
         </section>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

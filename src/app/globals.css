@@ -1,21 +1,3 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@layer base {
-  :root {
-    --brand-navy: #0a1628;
-    --brand-blue: #1b4f8a;
-    --brand-gold: #c8971b;
-    --brand-light: #f4f7fb;
-  }
-
-  html {
-    @apply antialiased;
-  }
-
-  body {
-    @apply bg-brand-light text-brand-navy;
-    font-family: Inter, system-ui, sans-serif;
-  }
-}

@@ -1,6 +1,12 @@
 /**
- * Simulation entry point — participant landing.
- * Loads or creates a simulation_run, then routes to the correct step.
+ * /simulation — Participant entry point.
+ *
+ * Routing logic (in priority order):
+ *   1. in_progress run → current round
+ *   2. not_started run → orientation
+ *   3. completed run → dashboard
+ *   4. no run + accepted cohort membership → auto-create run → orientation
+ *   5. no cohort → holding page
  */
 
 import { redirect } from "next/navigation";
@@ -15,44 +21,98 @@ export default async function SimulationPage() {
 
   if (!user) redirect("/login");
 
-  // Look up the participant's active simulation run
-  const { data: run } = await supabase
+  // Fetch all runs for this user in one query
+  const { data: runs } = await supabase
     .from("simulation_runs")
     .select("id, status, current_round_number")
     .eq("user_id", user.id)
-    .eq("status", "in_progress")
-    .maybeSingle();
+    .order("created_at", { ascending: false });
 
-  if (run) {
-    redirect(`/simulation/${run.id}/round/${run.current_round_number}`);
+  for (const run of runs ?? []) {
+    if (run.status === "in_progress") {
+      redirect(`/simulation/${run.id}/round/${run.current_round_number}`);
+    }
+    if (run.status === "not_started") {
+      redirect(`/simulation/${run.id}/orientation`);
+    }
+    if (run.status === "completed") {
+      redirect(`/simulation/${run.id}/dashboard`);
+    }
   }
 
-  // Check for a not-started run to begin
-  const { data: notStarted } = await supabase
-    .from("simulation_runs")
-    .select("id")
+  // No existing run — check for an accepted cohort membership and auto-create
+  const { data: membership } = await supabase
+    .from("cohort_memberships")
+    .select("cohort_id")
     .eq("user_id", user.id)
-    .eq("status", "not_started")
+    .eq("invitation_status", "accepted")
     .maybeSingle();
 
-  if (notStarted) {
-    redirect(`/simulation/${notStarted.id}/orientation`);
+  if (membership) {
+    const { data: cohort } = await supabase
+      .from("cohorts")
+      .select("id, scenario_version_id, status")
+      .eq("id", membership.cohort_id)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (cohort) {
+      const { data: newRun, error: createError } = await supabase
+        .from("simulation_runs")
+        .insert({
+          user_id: user.id,
+          cohort_id: cohort.id,
+          scenario_version_id: cohort.scenario_version_id,
+          status: "not_started",
+          current_round_number: 1,
+        })
+        .select("id")
+        .single();
+
+      if (newRun && !createError) {
+        redirect(`/simulation/${newRun.id}/orientation`);
+      }
+
+      // If insert failed (e.g. unique conflict), re-query for the existing run
+      const { data: existingRun } = await supabase
+        .from("simulation_runs")
+        .select("id, status, current_round_number")
+        .eq("user_id", user.id)
+        .eq("cohort_id", cohort.id)
+        .maybeSingle();
+
+      if (existingRun) {
+        if (existingRun.status === "in_progress") {
+          redirect(
+            `/simulation/${existingRun.id}/round/${existingRun.current_round_number}`
+          );
+        }
+        if (existingRun.status === "not_started") {
+          redirect(`/simulation/${existingRun.id}/orientation`);
+        }
+        if (existingRun.status === "completed") {
+          redirect(`/simulation/${existingRun.id}/dashboard`);
+        }
+      }
+    }
   }
 
-  // Placeholder: no run found — show a holding page
-  // In full implementation: admin creates run on participant invite
+  // No cohort assignment found
   return (
     <main className="min-h-screen bg-brand-navy flex items-center justify-center px-4">
       <div className="max-w-lg text-center">
-        <div className="text-brand-gold text-sm font-semibold tracking-widest uppercase mb-2">
+        <div
+          className="text-brand-gold text-sm font-semibold tracking-widest uppercase mb-3"
+          aria-hidden="true"
+        >
           BWXT Leadership Academy
         </div>
         <h1 className="text-white text-2xl font-bold mb-4">
-          No active simulation found
+          No simulation assigned
         </h1>
-        <p className="text-white/60 text-sm">
+        <p className="text-white/60 text-sm leading-relaxed">
           Your simulation has not been assigned yet. Contact your program
-          administrator or wait for your invitation.
+          administrator or wait for your cohort invitation.
         </p>
       </div>
     </main>

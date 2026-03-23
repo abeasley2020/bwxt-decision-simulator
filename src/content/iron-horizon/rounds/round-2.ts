@@ -1,7 +1,7 @@
 /**
  * Operation Iron Horizon — Round 2: Disruption
  *
- * Decisions: regulatory issue, competitor move, talent gap, operational stress
+ * Decisions: regulatory response, competitor threat, talent gap, operational stress
  */
 
 import type { ScenarioRound } from "@/engine/types";
@@ -11,262 +11,223 @@ const round2: ScenarioRound = {
   title: "Disruption",
   description: "Navigate compounding external and internal shocks at Day 45.",
   briefingContent: `
-It's Day 45. Three disruptions have arrived simultaneously.
+Three simultaneous disruptions have hit the division.
 
-REGULATORY: The nuclear safety audit has been moved up by 30 days.
-One auditor has flagged a potential Category 2 finding in your coolant systems documentation.
-If unresolved, it could trigger a production hold.
+A federal regulator has issued a preliminary inquiry into a safety documentation gap discovered during the compliance audit.
 
-COMPETITOR: A major competitor has publicly announced a 15% price reduction on
-defense manufacturing contracts and is targeting three of your top-10 accounts.
-Your sales team is asking for authorization to match pricing.
+A well-funded competitor has announced a direct move into your core defense market with a lower-cost manufacturing model.
 
-TALENT: Your Head of Engineering has announced he's retiring in 60 days.
-No internal successor is ready. The role is critical for both the audit and the
-digital transformation program.
+Two of your remaining direct reports are showing signs of disengagement following the HOO situation.
 
-You must respond to all three. Time is compressed.
+Operational throughput has dropped 8% due to a supplier delay on a critical component.
   `.trim(),
   eventContent: `
-Your COO is on the line: "We can't manage all three at once without your clear direction.
-Which do we protect first? Which do we accept risk on?"
+The Board's Audit Committee chair has called an emergency briefing in 48 hours. You must have a response posture ready across all four disruptions before that call.
   `.trim(),
   sortOrder: 2,
   decisions: [
     // ─── D2-1: Regulatory Response ────────────────────────────────────────
     {
       key: "r2_regulatory",
-      title: "Nuclear Safety Audit Response",
+      title: "Regulatory Response",
       prompt:
-        "The audit has been moved up 30 days and a Category 2 finding is possible. How do you respond?",
+        "A federal regulator has issued a preliminary inquiry into a safety documentation gap. How do you respond before the Audit Committee briefing?",
       decisionType: "single_select",
       isRequired: true,
       sortOrder: 1,
       options: [
         {
-          key: "r2_reg_fullstop",
-          label: "Declare an internal hold and fix it completely",
+          key: "r2_reg_proactive",
+          label: "Engage proactively with the regulator before they escalate",
           description:
-            "Stop affected production lines. Assign a full remediation team. Accept the short-term cost to eliminate the compliance risk entirely.",
+            "Reach out directly to the regulatory contact to acknowledge the gap, present a remediation plan, and establish a cooperative posture before the inquiry advances.",
           sortOrder: 1,
           effectRules: [
-            { effectType: "kpi", targetKey: "safety_compliance_confidence", effectValue: 15 },
-            { effectType: "kpi", targetKey: "financial_performance_outlook", effectValue: -8 },
-            { effectType: "kpi", targetKey: "operational_throughput", effectValue: -7 },
-            { effectType: "score", targetKey: "enterprise_judgment", effectValue: 5 },
-            {
-              effectType: "hidden_trait",
-              targetKey: "compliance_first_leader",
-              effectValue: 1,
-            },
+            { effectType: "kpi", targetKey: "safety_compliance_confidence", effectValue: 12 },
+            { effectType: "kpi", targetKey: "executive_confidence", effectValue: 6 },
+            { effectType: "score", targetKey: "enterprise_judgment", effectValue: 4 },
           ],
         },
         {
-          key: "r2_reg_targeted",
-          label: "Fix the specific finding, maintain operations",
+          key: "r2_reg_internal",
+          label: "Conduct an internal review first, then decide whether to disclose",
           description:
-            "Target only the flagged documentation gap. Keep all other lines running. Accept residual risk in exchange for operational continuity.",
+            "Commission a rapid internal review of the documentation gap before any external communication. Reserve disclosure decisions until the facts are clear.",
           sortOrder: 2,
           effectRules: [
-            { effectType: "kpi", targetKey: "safety_compliance_confidence", effectValue: 7 },
-            { effectType: "kpi", targetKey: "operational_throughput", effectValue: 2 },
+            { effectType: "kpi", targetKey: "safety_compliance_confidence", effectValue: 5 },
+            { effectType: "kpi", targetKey: "executive_confidence", effectValue: 2 },
             { effectType: "score", targetKey: "enterprise_judgment", effectValue: 2 },
-            { effectType: "score", targetKey: "decision_velocity_with_discipline", effectValue: 2 },
           ],
         },
         {
-          key: "r2_reg_external",
-          label: "Engage external audit counsel to negotiate",
+          key: "r2_reg_legal",
+          label: "Defer to legal and pause all related operations",
           description:
-            "Bring in outside regulatory counsel to work with the auditor directly. Buy time to remediate while managing the finding behind the scenes.",
+            "Place all affected operations on hold and route all communications through legal counsel. Prioritize legal protection over speed of response.",
           sortOrder: 3,
           effectRules: [
-            { effectType: "kpi", targetKey: "safety_compliance_confidence", effectValue: 4 },
-            { effectType: "kpi", targetKey: "executive_confidence", effectValue: -4 },
-            { effectType: "score", targetKey: "enterprise_judgment", effectValue: 1 },
-            {
-              effectType: "hidden_trait",
-              targetKey: "risk_deflector",
-              effectValue: 1,
-            },
+            { effectType: "kpi", targetKey: "safety_compliance_confidence", effectValue: -5 },
+            { effectType: "kpi", targetKey: "decision_velocity", effectValue: -8 },
+            { effectType: "score", targetKey: "enterprise_judgment", effectValue: -2 },
           ],
         },
       ],
     },
 
-    // ─── D2-2: Competitor Response ────────────────────────────────────────
+    // ─── D2-2: Competitor Threat Response ─────────────────────────────────
     {
       key: "r2_competitor",
-      title: "Competitor Price Reduction Response",
+      title: "Competitor Threat Response",
       prompt:
-        "A major competitor has cut defense manufacturing prices by 15% and is targeting your key accounts. Your sales team wants to match. What do you do?",
+        "A well-funded competitor has announced entry into your core defense market with a lower-cost manufacturing model. How do you respond?",
       decisionType: "single_select",
       isRequired: true,
       sortOrder: 2,
       options: [
         {
-          key: "r2_comp_match",
-          label: "Match pricing on all at-risk accounts",
+          key: "r2_comp_partnership",
+          label: "Accelerate a strategic partnership to close capability gap",
           description:
-            "Authorize a price match to protect market share. Accept margin compression now to prevent account attrition.",
+            "Identify and fast-track a manufacturing or technology partnership that closes the cost or capability gap the competitor is exploiting. Move quickly before they gain account traction.",
           sortOrder: 1,
           effectRules: [
-            { effectType: "kpi", targetKey: "financial_performance_outlook", effectValue: -10 },
-            { effectType: "kpi", targetKey: "operational_throughput", effectValue: 4 },
-            { effectType: "score", targetKey: "financial_strategic_acumen", effectValue: 1 },
+            { effectType: "kpi", targetKey: "digital_maturity", effectValue: 8 },
+            { effectType: "kpi", targetKey: "financial_performance_outlook", effectValue: 5 },
+            { effectType: "score", targetKey: "technology_data_leadership", effectValue: 4 },
           ],
         },
         {
-          key: "r2_comp_selective",
-          label: "Defend top 3 accounts only, let others compete",
+          key: "r2_comp_rnd",
+          label: "Double down on internal R&D and differentiation",
           description:
-            "Prioritize your three most strategic accounts with tailored retention offers. Accept potential loss of smaller accounts. Preserve overall margin.",
+            "Redirect discretionary investment into accelerated R&D to deepen BWXT's technical differentiation. Compete on capability, not cost.",
           sortOrder: 2,
           effectRules: [
-            { effectType: "kpi", targetKey: "financial_performance_outlook", effectValue: -3 },
-            { effectType: "kpi", targetKey: "executive_confidence", effectValue: 3 },
-            { effectType: "score", targetKey: "financial_strategic_acumen", effectValue: 4 },
-            { effectType: "score", targetKey: "enterprise_judgment", effectValue: 3 },
-            { effectType: "hidden_trait", targetKey: "selective_strategist", effectValue: 1 },
+            { effectType: "kpi", targetKey: "digital_maturity", effectValue: 10 },
+            { effectType: "kpi", targetKey: "financial_performance_outlook", effectValue: -4 },
+            { effectType: "score", targetKey: "technology_data_leadership", effectValue: 5 },
           ],
         },
         {
-          key: "r2_comp_differentiate",
-          label: "Reframe the value proposition, do not match price",
+          key: "r2_comp_hold",
+          label: "Stay the course — competitors often overpromise",
           description:
-            "Brief your account teams on BWXT's unique quality and safety capabilities. Compete on differentiation, not price. Accept potential short-term attrition.",
+            "Maintain current strategy and pricing. Defense manufacturing entry is operationally complex; monitor the competitor's execution before reacting.",
           sortOrder: 3,
           effectRules: [
-            { effectType: "kpi", targetKey: "financial_performance_outlook", effectValue: -5 },
-            { effectType: "kpi", targetKey: "executive_confidence", effectValue: 5 },
-            { effectType: "score", targetKey: "financial_strategic_acumen", effectValue: 3 },
-            { effectType: "score", targetKey: "communication_alignment", effectValue: 3 },
-            {
-              effectType: "hidden_trait",
-              targetKey: "differentiation_oriented",
-              effectValue: 1,
-            },
+            { effectType: "kpi", targetKey: "financial_performance_outlook", effectValue: 3 },
+            { effectType: "score", targetKey: "enterprise_judgment", effectValue: -2 },
           ],
         },
       ],
     },
 
-    // ─── D2-3: Engineering Succession ─────────────────────────────────────
+    // ─── D2-3: Talent Gap ──────────────────────────────────────────────────
     {
-      key: "r2_engineering_succession",
-      title: "Head of Engineering Succession",
+      key: "r2_talent_gap",
+      title: "Talent Gap",
       prompt:
-        "Your Head of Engineering retires in 60 days. No internal successor is ready. This role is critical for audit compliance and your digital transformation. How do you fill it?",
-      decisionType: "single_select",
+        "Two direct reports are disengaged and a critical leadership gap has emerged. Select two actions to address your talent situation.",
+      decisionType: "multi_select",
+      minChoices: 2,
+      maxChoices: 2,
       isRequired: true,
       sortOrder: 3,
       options: [
         {
-          key: "r2_eng_interim",
-          label: "Appoint an internal interim and begin external search",
+          key: "r2_tal_promote",
+          label: "Promote a high-potential internal candidate immediately",
           description:
-            "Appoint your most senior engineering director as interim. Immediately open a confidential external search. Accept 6-month transition risk.",
+            "Identify the strongest internal candidate and move them into an expanded role now. Signal confidence in your bench and create internal momentum.",
           sortOrder: 1,
           effectRules: [
-            { effectType: "kpi", targetKey: "talent_readiness", effectValue: 3 },
-            { effectType: "kpi", targetKey: "operational_throughput", effectValue: -3 },
-            { effectType: "score", targetKey: "talent_leadership", effectValue: 3 },
-            { effectType: "score", targetKey: "decision_velocity_with_discipline", effectValue: 2 },
+            { effectType: "kpi", targetKey: "talent_readiness", effectValue: 8 },
+            { effectType: "kpi", targetKey: "cross_functional_alignment", effectValue: 5 },
+            { effectType: "score", targetKey: "talent_leadership", effectValue: 4 },
           ],
         },
         {
-          key: "r2_eng_accelerate_internal",
-          label: "Fast-track an internal candidate with coaching support",
+          key: "r2_tal_search",
+          label: "Launch an accelerated external search",
           description:
-            "Name an internal candidate into the permanent role early with a structured 90-day coaching plan. Invest in development over search costs.",
+            "Engage an executive search firm immediately with a 60-day placement target. Supplement internal depth with external talent.",
           sortOrder: 2,
           effectRules: [
-            { effectType: "kpi", targetKey: "talent_readiness", effectValue: 7 },
-            { effectType: "kpi", targetKey: "cross_functional_alignment", effectValue: 4 },
-            { effectType: "score", targetKey: "talent_leadership", effectValue: 5 },
-            { effectType: "score", targetKey: "continuous_improvement_orientation", effectValue: 3 },
-            { effectType: "hidden_trait", targetKey: "people_first_leader", effectValue: 1 },
+            { effectType: "kpi", targetKey: "talent_readiness", effectValue: 5 },
+            { effectType: "score", targetKey: "talent_leadership", effectValue: 2 },
           ],
         },
         {
-          key: "r2_eng_contract",
-          label: "Bring in a contract engineering executive",
+          key: "r2_tal_redistribute",
+          label: "Redistribute responsibilities across existing leadership",
           description:
-            "Immediately engage a specialized executive staffing firm for a contract engineering leader. Bridge the gap while running a permanent search.",
+            "Realign portfolios across the current leadership team to cover the gap without adding headcount or external spend.",
           sortOrder: 3,
           effectRules: [
-            { effectType: "kpi", targetKey: "talent_readiness", effectValue: 5 },
-            { effectType: "kpi", targetKey: "financial_performance_outlook", effectValue: -4 },
-            { effectType: "score", targetKey: "talent_leadership", effectValue: 2 },
-            { effectType: "score", targetKey: "decision_velocity_with_discipline", effectValue: 4 },
+            { effectType: "kpi", targetKey: "talent_readiness", effectValue: 3 },
+            { effectType: "kpi", targetKey: "operational_throughput", effectValue: -4 },
+            { effectType: "score", targetKey: "talent_leadership", effectValue: 1 },
+          ],
+        },
+        {
+          key: "r2_tal_interim",
+          label: "Bring in an interim executive while searching",
+          description:
+            "Engage a specialized interim executive firm to place a senior leader within two weeks. Maintain stability while a permanent search proceeds.",
+          sortOrder: 4,
+          effectRules: [
+            { effectType: "kpi", targetKey: "talent_readiness", effectValue: 6 },
+            { effectType: "score", targetKey: "decision_velocity_with_discipline", effectValue: 3 },
           ],
         },
       ],
     },
 
-    // ─── D2-4: Operating Rhythm ───────────────────────────────────────────
+    // ─── D2-4: Operational Stress Response ────────────────────────────────
     {
-      key: "r2_operating_model",
-      title: "Operating Model Under Pressure",
+      key: "r2_operational_stress",
+      title: "Operational Stress Response",
       prompt:
-        "With three simultaneous disruptions, your leadership team is feeling overwhelmed. How do you adjust your operating model to manage execution?",
-      decisionType: "multi_select",
-      minChoices: 1,
-      maxChoices: 2,
+        "Operational throughput has dropped 8% from a supplier delay. How do you respond to restore delivery performance?",
+      decisionType: "single_select",
       isRequired: true,
       sortOrder: 4,
       options: [
         {
-          key: "r2_ops_warroom",
-          label: "Stand up a cross-functional crisis team",
+          key: "r2_ops_scope",
+          label: "Temporarily reduce scope on lower-priority programs",
           description:
-            "Activate a dedicated leadership war room to manage all three disruptions in parallel. Daily stand-ups, clear owners, visible scorecards.",
+            "Pause or deprioritize lower-urgency work to free capacity for constrained programs. Communicate the triage decision clearly to stakeholders.",
           sortOrder: 1,
           effectRules: [
-            { effectType: "kpi", targetKey: "cross_functional_alignment", effectValue: 7 },
-            { effectType: "kpi", targetKey: "decision_velocity", effectValue: 5 },
-            { effectType: "score", targetKey: "enterprise_judgment", effectValue: 3 },
-            { effectType: "score", targetKey: "communication_alignment", effectValue: 2 },
-          ],
-        },
-        {
-          key: "r2_ops_delegate",
-          label: "Delegate two of three issues to direct reports",
-          description:
-            "Own one issue personally. Fully delegate the other two with clear decision rights and check-ins. Demonstrate trust and build leadership depth.",
-          sortOrder: 2,
-          effectRules: [
-            { effectType: "kpi", targetKey: "talent_readiness", effectValue: 5 },
-            { effectType: "kpi", targetKey: "cross_functional_alignment", effectValue: 3 },
-            { effectType: "score", targetKey: "talent_leadership", effectValue: 4 },
-            { effectType: "score", targetKey: "decision_velocity_with_discipline", effectValue: 3 },
-            { effectType: "hidden_trait", targetKey: "delegating_leader", effectValue: 1 },
-          ],
-        },
-        {
-          key: "r2_ops_triage",
-          label: "Formally triage and sequence the three issues",
-          description:
-            "Publish an explicit prioritization order — regulatory first, talent second, commercial third — and communicate it to the organization.",
-          sortOrder: 3,
-          effectRules: [
-            { effectType: "kpi", targetKey: "executive_confidence", effectValue: 5 },
-            { effectType: "kpi", targetKey: "decision_velocity", effectValue: 3 },
-            { effectType: "score", targetKey: "decision_velocity_with_discipline", effectValue: 4 },
+            { effectType: "kpi", targetKey: "operational_throughput", effectValue: 6 },
+            { effectType: "kpi", targetKey: "financial_performance_outlook", effectValue: 3 },
             { effectType: "score", targetKey: "enterprise_judgment", effectValue: 2 },
           ],
         },
         {
-          key: "r2_ops_slow",
-          label: "Slow the pace to reduce errors",
+          key: "r2_ops_realloc",
+          label: "Request emergency budget reallocation",
           description:
-            "Call a 48-hour operational pause to reset. Allow the team to catch up, avoid mistakes from fatigue, and set a more sustainable cadence.",
-          sortOrder: 4,
+            "Request an emergency budget draw to qualify a backup supplier and restore capacity through parallel sourcing. Accept short-term cost to protect delivery.",
+          sortOrder: 2,
           effectRules: [
-            { effectType: "kpi", targetKey: "decision_velocity", effectValue: -5 },
-            { effectType: "kpi", targetKey: "operational_throughput", effectValue: -3 },
-            { effectType: "kpi", targetKey: "executive_confidence", effectValue: -3 },
-            { effectType: "score", targetKey: "continuous_improvement_orientation", effectValue: 2 },
+            { effectType: "kpi", targetKey: "operational_throughput", effectValue: 8 },
+            { effectType: "kpi", targetKey: "financial_performance_outlook", effectValue: -5 },
+            { effectType: "score", targetKey: "financial_strategic_acumen", effectValue: 3 },
+          ],
+        },
+        {
+          key: "r2_ops_push",
+          label: "Push delivery teams harder and accept short-term burnout risk",
+          description:
+            "Ask delivery teams to absorb the throughput gap through extended hours and compressed timelines. Recover lost output on the current cost base.",
+          sortOrder: 3,
+          effectRules: [
+            { effectType: "kpi", targetKey: "operational_throughput", effectValue: 10 },
+            { effectType: "kpi", targetKey: "talent_readiness", effectValue: -8 },
+            { effectType: "score", targetKey: "talent_leadership", effectValue: -3 },
           ],
         },
       ],

@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/kingd/bwxt-enterprise-decision-simulator -not -name *.md -type f)",
+      "Bash(gh repo:*)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(git init:*)",
+      "Bash(git remote:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm run:*)",
+      "Bash(git rm:*)",
+      "Bash(npm view:*)",
+      "Bash(node -e \"const v=require\\(''''fs''''\\).readFileSync\\(''''/dev/stdin'''',''''utf8''''\\); const arr=JSON.parse\\(v\\); console.log\\(arr.filter\\(x=>x.startsWith\\(''''14.''''\\)\\).slice\\(-5\\).join\\(''''\\\\n''''\\)\\)\")",
+      "Bash(find /c/Users/kingd/bwxt-enterprise-decision-simulator -not -path */node_modules/* -type f)",
+      "Bash(npx tsc:*)",
+      "Bash(npx next:*)",
+      "Bash(wc:*)",
+      "Bash(npx kill-port:*)",
+      "Bash(node -e \"require\\(''''./.next/server/app/simulation/[runId]/results/page.js''''\\)\")",
+      "Bash(node --experimental-vm-modules -e \":*)",
+      "Bash(ls .next/server/app/simulation/[runId]/)",
+      "Bash(node -e \":*)"
+    ]
+  }
+}
