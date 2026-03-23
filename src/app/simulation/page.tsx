@@ -21,6 +21,17 @@ export default async function SimulationPage() {
 
   if (!user) redirect("/login");
 
+  // Faculty and admin belong in the faculty dashboard, not the simulation flow
+  const { data: userRow } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (userRow?.role === "faculty" || userRow?.role === "admin") {
+    redirect("/faculty/dashboard");
+  }
+
   // Fetch all runs for this user in one query
   const { data: runs } = await supabase
     .from("simulation_runs")

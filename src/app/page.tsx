@@ -17,6 +17,16 @@ export default async function RootPage() {
     redirect("/login");
   }
 
-  // Role-based redirect is handled by individual dashboards
+  // Route faculty and admin to their dashboard; participants to simulation
+  const { data: userRow } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (userRow?.role === "faculty" || userRow?.role === "admin") {
+    redirect("/faculty/dashboard");
+  }
+
   redirect("/simulation");
 }
