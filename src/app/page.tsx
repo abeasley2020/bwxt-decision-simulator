@@ -17,14 +17,18 @@ export default async function RootPage() {
     redirect("/login");
   }
 
-  // Route faculty and admin to their dashboard; participants to simulation
+  // Route users to their role-appropriate home
   const { data: userRow } = await supabase
     .from("users")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (userRow?.role === "faculty" || userRow?.role === "admin") {
+  if (userRow?.role === "admin") {
+    redirect("/admin/dashboard");
+  }
+
+  if (userRow?.role === "faculty") {
     redirect("/faculty/dashboard");
   }
 
