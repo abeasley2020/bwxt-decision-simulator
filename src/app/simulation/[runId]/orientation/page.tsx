@@ -23,7 +23,6 @@ import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
 import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
 import SelfAssessmentForm from "@/components/orientation/SelfAssessmentForm";
-import SimulationNav from "@/components/SimulationNav";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 
 interface Props {
@@ -57,7 +56,6 @@ export default async function OrientationPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-bwxt-bg">
-      <SimulationNav />
       {run.is_preview && <PreviewBanner />}
 
       {/* Hero section — full bleed navy */}

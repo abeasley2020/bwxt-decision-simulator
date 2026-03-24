@@ -20,7 +20,6 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import RecommendationForm from "@/components/recommendation/RecommendationForm";
-import SimulationNav from "@/components/SimulationNav";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 
 interface Props {
@@ -57,7 +56,6 @@ export default async function RecommendationPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-bwxt-bg">
-      <SimulationNav />
       {run.is_preview && <PreviewBanner />}
 
       {/* Status bar */}

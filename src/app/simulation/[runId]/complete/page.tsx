@@ -19,7 +19,6 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
-import SimulationNav from "@/components/SimulationNav";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 import type { KPIValues, PerformanceProfileKey } from "@/engine/types";
 
@@ -104,7 +103,6 @@ export default async function CompletePage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-bwxt-bg">
-      <SimulationNav />
       {run.is_preview && <PreviewBanner />}
 
       {/* Status bar */}

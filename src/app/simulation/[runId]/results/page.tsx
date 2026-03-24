@@ -29,7 +29,6 @@ import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
 import { assignPerformanceProfile } from "@/engine/profiling";
-import SimulationNav from "@/components/SimulationNav";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 import type {
   KPIValues,
@@ -223,7 +222,6 @@ export default async function ResultsPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-bwxt-bg">
-      <SimulationNav />
       {run.is_preview && <PreviewBanner />}
 
       {/* Status bar */}

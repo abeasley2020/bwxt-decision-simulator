@@ -15,7 +15,6 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
 import RoundForm from "@/components/round/RoundForm";
-import SimulationNav from "@/components/SimulationNav";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 
 interface Props {
@@ -63,7 +62,6 @@ export default async function RoundPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-bwxt-bg">
-      <SimulationNav roundLabel={`Round ${roundNumber} of 3`} />
       {run.is_preview && <PreviewBanner />}
 
       {/* Round header strip */}

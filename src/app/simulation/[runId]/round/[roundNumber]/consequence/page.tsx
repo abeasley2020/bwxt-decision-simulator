@@ -22,7 +22,6 @@ import { IRON_HORIZON_CONSEQUENCES } from "@/content/iron-horizon/consequences";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
 import { KPI_DEFINITIONS, buildInitialKPIs, computeKPIDelta } from "@/engine/kpi";
 import KPIChangeCard from "@/components/kpi/KPIChangeCard";
-import SimulationNav from "@/components/SimulationNav";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 import type { KPIValues, KPIKey } from "@/engine/types";
 
@@ -152,7 +151,6 @@ export default async function ConsequencePage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-bwxt-bg">
-      <SimulationNav roundLabel={`Round ${roundNumber} of 3`} />
       {run.is_preview && <PreviewBanner />}
 
       {/* Status bar */}
