@@ -5,16 +5,15 @@
  *   1. in_progress run → current round
  *   2. not_started run → orientation
  *   3. completed run → dashboard
- *   4. no run + cohort membership (accepted or pending) → auto-create run → orientation
+ *   4. no run + cohort membership → auto-create run → orientation
  *   5. no cohort → holding page
  *
- * NOTE on ID resolution:
- *   supabase.auth.getUser() returns auth.users.id, but all application
- *   tables (public.users, simulation_runs, cohort_memberships) store
- *   public.users.id, which may differ. Participants added via the admin
- *   invite flow get a fresh public.users.id before they have an auth
- *   account, so the two UUIDs are different. We resolve public.users.id
- *   by email (the one field shared between auth.users and public.users).
+ * ID resolution note:
+ *   All application tables (public.users, simulation_runs, cohort_memberships)
+ *   use public.users.id. For accounts created via the admin invite flow after
+ *   the provisioning fix, public.users.id = auth.users.id and direct ID
+ *   lookup works. For older accounts where the IDs differ, we resolve
+ *   public.users.id by email as a safety net.
  */
 
 import { redirect } from "next/navigation";
@@ -29,38 +28,30 @@ export default async function SimulationPage() {
 
   if (!user) redirect("/login");
 
-  // ── Resolve public.users record by email ────────────────────────────────
-  // public.users.id can differ from auth.users.id for admin-added participants.
+  // ── Resolve public.users record ─────────────────────────────────────────────
+  // Query by email so we get the correct public.users.id even when it differs
+  // from auth.users.id (can happen for accounts provisioned before the
+  // invite-flow fix).
   const { data: publicUser } = await supabase
     .from("users")
     .select("id, role")
     .eq("email", user.email!)
     .maybeSingle();
 
-  console.log("[/simulation] auth.users.id:", user.id);
-  console.log("[/simulation] user.email:", user.email);
-  console.log("[/simulation] public.users row:", publicUser);
-
-  // Fall back to auth.users.id only if no public.users row exists yet.
-  const userId = publicUser?.id ?? user.id;
-  const userRole = publicUser?.role;
-
-  console.log("[/simulation] resolved userId:", userId);
+  const userId   = publicUser?.id   ?? user.id;
+  const userRole = publicUser?.role ?? null;
 
   if (userRole === "faculty") redirect("/faculty/dashboard");
 
   const isAdmin = userRole === "admin";
 
-  // ── Fetch existing simulation runs ──────────────────────────────────────
-  const { data: runs, error: runsError } = await supabase
+  // ── Find existing simulation run ────────────────────────────────────────────
+
+  const { data: runs } = await supabase
     .from("simulation_runs")
     .select("id, status, current_round_number")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
-
-  console.log("[/simulation] runs query userId:", userId);
-  console.log("[/simulation] runs:", runs);
-  console.log("[/simulation] runs error:", runsError);
 
   for (const run of runs ?? []) {
     if (run.status === "in_progress") {
@@ -74,17 +65,16 @@ export default async function SimulationPage() {
     }
   }
 
-  // ── No run — check cohort membership and auto-create ───────────────────
-  const { data: membership, error: membershipError } = await supabase
+  // ── No run — check membership and auto-create ───────────────────────────────
+  // The invite flow now creates the simulation_run at provisioning time, so
+  // this path is a fallback for edge cases (e.g. run deleted, old data).
+
+  const { data: membership } = await supabase
     .from("cohort_memberships")
     .select("cohort_id")
     .eq("user_id", userId)
     .in("invitation_status", ["accepted", "pending"])
     .maybeSingle();
-
-  console.log("[/simulation] membership query userId:", userId);
-  console.log("[/simulation] membership:", membership);
-  console.log("[/simulation] membership error:", membershipError);
 
   if (membership) {
     const { data: cohort } = await supabase
@@ -94,23 +84,19 @@ export default async function SimulationPage() {
       .eq("status", "active")
       .maybeSingle();
 
-    console.log("[/simulation] cohort:", cohort);
-
     if (cohort) {
       const { data: newRun, error: createError } = await supabase
         .from("simulation_runs")
         .insert({
-          user_id: userId,
-          cohort_id: cohort.id,
-          scenario_version_id: cohort.scenario_version_id,
-          status: "not_started",
+          user_id:              userId,
+          cohort_id:            cohort.id,
+          scenario_version_id:  cohort.scenario_version_id,
+          status:               "not_started",
           current_round_number: 1,
-          is_preview: isAdmin,
+          is_preview:           isAdmin,
         })
         .select("id")
         .single();
-
-      console.log("[/simulation] newRun:", newRun, "createError:", createError);
 
       if (newRun && !createError) {
         redirect(`/simulation/${newRun.id}/orientation`);
@@ -123,8 +109,6 @@ export default async function SimulationPage() {
         .eq("user_id", userId)
         .eq("cohort_id", cohort.id)
         .maybeSingle();
-
-      console.log("[/simulation] existingRun:", existingRun);
 
       if (existingRun) {
         if (existingRun.status === "in_progress") {

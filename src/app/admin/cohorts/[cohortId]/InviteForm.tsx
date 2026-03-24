@@ -3,17 +3,16 @@
 /**
  * InviteForm — inline invite form for participants and faculty.
  *
- * Renders an "Invite" button that expands to an email input + submit.
+ * Renders an "Add" button that expands to an email input + submit.
  * On success:
- *  - If the user already exists: they are added to cohort_memberships immediately.
- *  - If the user does not exist: an invitation record is written to the
- *    invitations table (no email is sent in MVP).
- * Shows an inline success or error message after submission.
- * Calls router.refresh() so the parent server component re-renders the member table.
+ *  - Existing user: added to cohort_memberships immediately.
+ *  - New user: auth account + public.users created, simulation_run
+ *    provisioned, temp password displayed for the admin to share.
+ * Calls router.refresh() so the parent server component re-renders the table.
  *
- * WCAG: email input has an associated label (visually hidden via sr-only);
- * required attribute set; error/success uses role="alert" + aria-live;
- * focus moves to input when form opens.
+ * WCAG: email input has an associated label (sr-only); required attribute
+ * set; error/success conveyed by role="alert" + aria-live; temp password
+ * box is selectable text with a copy button.
  */
 
 import { useState, useRef } from "react";
@@ -33,6 +32,8 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const roleLabel = inviteeRole === "participant" ? "Participant" : "Faculty";
@@ -40,7 +41,8 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
   function handleOpen() {
     setOpen(true);
     setMessage(null);
-    // Defer focus until after DOM update
+    setTempPassword(null);
+    setCopied(false);
     setTimeout(() => inputRef.current?.focus(), 50);
   }
 
@@ -48,6 +50,19 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
     setOpen(false);
     setEmail("");
     setMessage(null);
+    setTempPassword(null);
+    setCopied(false);
+  }
+
+  async function handleCopy() {
+    if (!tempPassword) return;
+    try {
+      await navigator.clipboard.writeText(tempPassword);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard API unavailable — user can select text manually
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -57,6 +72,7 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
 
     setLoading(true);
     setMessage(null);
+    setTempPassword(null);
 
     try {
       const res = await fetch(`/api/admin/cohorts/${cohortId}/invite`, {
@@ -70,17 +86,24 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
       if (!res.ok) {
         setMessage({
           type: "error",
-          text: data.error ?? "Invitation failed. Please try again.",
+          text: data.error ?? "Failed to add user. Please try again.",
         });
         return;
       }
 
-      setMessage({
-        type: "success",
-        text: data.existed
-          ? `${trimmed} has been added to this cohort as ${roleLabel.toLowerCase()}.`
-          : `${trimmed} was added as ${roleLabel.toLowerCase()}. Note: they will need a login account set up before they can access the simulator.`,
-      });
+      if (data.existed) {
+        setMessage({
+          type: "success",
+          text: `${trimmed} has been added to this cohort as ${roleLabel.toLowerCase()}.`,
+        });
+      } else {
+        setMessage({
+          type: "success",
+          text: `New account created for ${trimmed}. Share the temporary password below — they can change it after first login.`,
+        });
+        setTempPassword(data.tempPassword ?? null);
+      }
+
       setEmail("");
       setOpen(false);
       router.refresh();
@@ -111,7 +134,7 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
         <form
           onSubmit={handleSubmit}
           className="flex items-start gap-2 flex-wrap"
-          aria-label={`Invite ${roleLabel.toLowerCase()} by email`}
+          aria-label={`Add ${roleLabel.toLowerCase()} by email`}
         >
           <div className="flex-1 min-w-[220px]">
             <label
@@ -174,6 +197,41 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
         >
           {message.text}
         </p>
+      )}
+
+      {/* Temp password display — only shown for newly created accounts */}
+      {tempPassword && (
+        <div
+          className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3"
+          role="status"
+          aria-live="polite"
+          aria-label="Temporary password for new account"
+        >
+          <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-1">
+            Temporary Password
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 font-mono text-sm text-amber-900 bg-white border border-amber-200 rounded px-3 py-1.5 select-all">
+              {tempPassword}
+            </code>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="
+                text-xs font-medium text-amber-700 hover:text-amber-900
+                bg-white border border-amber-200 rounded px-2.5 py-1.5
+                focus:outline-none focus:ring-2 focus:ring-brand-gold focus:ring-offset-1
+                whitespace-nowrap transition-colors
+              "
+              aria-label={copied ? "Copied" : "Copy password to clipboard"}
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          <p className="text-xs text-amber-700 mt-1.5">
+            Save this now — it will not be shown again.
+          </p>
+        </div>
       )}
     </div>
   );
