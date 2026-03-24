@@ -54,12 +54,14 @@ export default async function SimulationPage() {
     }
   }
 
-  // No existing run — check for an accepted cohort membership and auto-create
+  // No existing run — check for any cohort membership (accepted or pending)
+  // and auto-create a run. Pending status means the admin added them directly;
+  // they should still enter the simulation on first login.
   const { data: membership } = await supabase
     .from("cohort_memberships")
     .select("cohort_id")
     .eq("user_id", user.id)
-    .eq("invitation_status", "accepted")
+    .in("invitation_status", ["accepted", "pending"])
     .maybeSingle();
 
   if (membership) {
