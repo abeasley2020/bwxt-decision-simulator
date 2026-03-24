@@ -5,6 +5,7 @@
  */
 
 import AdminNav from "./AdminNav";
+import SignOutButton from "@/components/SignOutButton";
 
 export default function AdminLayout({
   children,
@@ -27,9 +28,7 @@ export default function AdminLayout({
               Operation Iron Horizon
             </span>
           </div>
-          <span className="text-white/40 text-xs hidden sm:block">
-            BWXT Leadership Academy
-          </span>
+          <SignOutButton />
         </div>
 
         {/* ── Navigation ────────────────────────────────────────────────── */}

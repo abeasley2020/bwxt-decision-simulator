@@ -25,10 +25,10 @@ interface RatingQuestionProps {
 
 function RatingQuestion({ name, legend, id }: RatingQuestionProps) {
   return (
-    <fieldset className="mb-6">
+    <fieldset className="border-b border-bwxt-border pb-6 mb-6 last:border-0 last:pb-0 last:mb-0">
       <legend
         id={id}
-        className="text-sm font-medium text-gray-800 mb-3 block"
+        className="text-[15px] font-medium text-bwxt-navy mb-3 block"
       >
         {legend}
       </legend>
@@ -48,14 +48,14 @@ function RatingQuestion({ name, legend, id }: RatingQuestionProps) {
               value={String(value)}
               required={value === 1}
               className="
-                w-5 h-5 text-brand-blue border-gray-400 cursor-pointer
-                focus:ring-2 focus:ring-brand-gold focus:ring-offset-1
+                w-5 h-5 text-bwxt-crimson border-bwxt-border cursor-pointer
+                focus:ring-2 focus:ring-bwxt-crimson focus:ring-offset-1
               "
             />
-            <span className="text-xs font-semibold text-gray-700 tabular-nums">
+            <span className="text-[12px] font-semibold text-bwxt-navy tabular-nums">
               {value}
             </span>
-            <span className="text-xs text-gray-500">{RATING_LABELS[value]}</span>
+            <span className="text-[12px] text-bwxt-text-muted">{RATING_LABELS[value]}</span>
           </label>
         ))}
       </div>
@@ -87,10 +87,10 @@ export default function SelfAssessmentForm() {
       <div className="mb-2">
         <label
           htmlFor="sa_q4"
-          className="block text-sm font-medium text-gray-800 mb-2"
+          className="block text-[15px] font-medium text-bwxt-navy mb-2"
         >
           4. As you begin this simulation, what is your primary leadership
-          concern? <span className="text-gray-400 font-normal">(Optional)</span>
+          concern? <span className="text-bwxt-text-muted font-normal">(Optional)</span>
         </label>
         <textarea
           id="sa_q4"
@@ -99,9 +99,9 @@ export default function SelfAssessmentForm() {
           maxLength={500}
           placeholder="Describe the leadership challenge you find most difficult or most relevant to your current role..."
           className="
-            w-full px-3 py-2 rounded-md border border-gray-300 text-gray-800
-            text-sm leading-relaxed placeholder-gray-400
-            focus:outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20
+            w-full px-3 py-2 rounded-lg border border-bwxt-border text-bwxt-navy
+            text-[15px] leading-relaxed placeholder-bwxt-text-muted
+            focus:outline-none focus:border-bwxt-crimson focus:ring-1 focus:ring-bwxt-crimson
             resize-y
           "
         />

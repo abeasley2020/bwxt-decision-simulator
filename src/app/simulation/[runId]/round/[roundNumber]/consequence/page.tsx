@@ -22,6 +22,8 @@ import { IRON_HORIZON_CONSEQUENCES } from "@/content/iron-horizon/consequences";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
 import { KPI_DEFINITIONS, buildInitialKPIs, computeKPIDelta } from "@/engine/kpi";
 import KPIChangeCard from "@/components/kpi/KPIChangeCard";
+import SimulationNav from "@/components/SimulationNav";
+import PreviewBanner from "@/components/simulation/PreviewBanner";
 import type { KPIValues, KPIKey } from "@/engine/types";
 
 interface Props {
@@ -41,7 +43,7 @@ export default async function ConsequencePage({ params }: Props) {
 
   const { data: run } = await supabase
     .from("simulation_runs")
-    .select("id, status, current_round_number, user_id, scenario_version_id")
+    .select("id, status, current_round_number, user_id, scenario_version_id, is_preview")
     .eq("id", params.runId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -149,59 +151,41 @@ export default async function ConsequencePage({ params }: Props) {
     : "View Final Results";
 
   return (
-    <div className="min-h-screen bg-brand-light">
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <header className="bg-brand-navy text-white">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <div>
-            <div
-              className="text-brand-gold text-xs font-semibold tracking-widest uppercase mb-0.5"
-              aria-hidden="true"
-            >
-              Round {roundNumber} Complete
-            </div>
-            <h1 className="text-white font-bold text-lg leading-tight">
-              {consequence?.headline ?? `Round ${roundNumber} Results`}
-            </h1>
-          </div>
-          <div
-            className="text-white/40 text-xs text-right hidden sm:block"
-            aria-hidden="true"
-          >
-            <div>Operation Iron Horizon</div>
-            <div className="mt-0.5 flex gap-1">
-              {[1, 2, 3].map((n) => (
-                <div
-                  key={n}
-                  className={`h-1 w-8 rounded-full ${
-                    n <= roundNumber ? "bg-brand-gold" : "bg-white/20"
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-bwxt-bg">
+      <SimulationNav roundLabel={`Round ${roundNumber} of 3`} />
+      {run.is_preview && <PreviewBanner />}
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
+      {/* Status bar */}
+      <div className="bg-bwxt-navy-light border-b border-bwxt-border">
+        <div className="max-w-[880px] mx-auto px-6 py-3 flex items-center gap-3">
+          <span className="bg-bwxt-crimson text-white text-[12px] font-semibold px-3 py-1 rounded-full">
+            Round {roundNumber} Complete
+          </span>
+          <span className="text-bwxt-text-secondary text-[13px]">
+            &mdash; {consequence?.headline ?? "Results"}
+          </span>
+        </div>
+      </div>
+
+      <main className="max-w-[880px] mx-auto px-6 py-8 space-y-8">
         {consequence ? (
           <>
-            {/* ── Consequence narrative ──────────────────────────────── */}
-            <section aria-labelledby="consequence-heading" className="mb-8">
+            {/* ── What Happened ──────────────────────────────────────── */}
+            <section aria-labelledby="consequence-heading">
               <h2
                 id="consequence-heading"
-                className="text-brand-navy text-lg font-bold mb-3"
+                className="text-[18px] font-semibold text-bwxt-navy mb-3"
               >
                 What Happened
               </h2>
-              <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <div className="bg-white border border-bwxt-border rounded-xl shadow-card p-6">
                 {consequence.narrative
                   .split("\n")
                   .filter(Boolean)
                   .map((para, i) => (
                     <p
                       key={i}
-                      className="text-gray-700 text-sm leading-relaxed mb-3 last:mb-0"
+                      className="text-[15px] text-bwxt-text-primary leading-[1.65] mb-3 last:mb-0"
                     >
                       {para}
                     </p>
@@ -209,11 +193,11 @@ export default async function ConsequencePage({ params }: Props) {
               </div>
             </section>
 
-            {/* ── Stakeholder reactions ──────────────────────────────── */}
-            <section aria-labelledby="reactions-heading" className="mb-8">
+            {/* ── Stakeholder Reactions ──────────────────────────────── */}
+            <section aria-labelledby="reactions-heading">
               <h2
                 id="reactions-heading"
-                className="text-brand-navy text-lg font-bold mb-3"
+                className="text-[18px] font-semibold text-bwxt-navy mb-3"
               >
                 Stakeholder Reactions
               </h2>
@@ -221,25 +205,25 @@ export default async function ConsequencePage({ params }: Props) {
                 {consequence.stakeholderReactions.map((reaction) => (
                   <div
                     key={reaction.name}
-                    className="bg-white border border-gray-200 rounded-xl p-5"
+                    className="bg-white border border-bwxt-border rounded-xl shadow-card p-5"
                   >
                     <div className="flex items-start gap-3">
                       <div
-                        className="flex-shrink-0 w-8 h-8 rounded-full bg-brand-navy/10 flex items-center justify-center text-brand-navy font-bold text-sm"
+                        className="w-8 h-8 rounded-full bg-bwxt-navy-light flex items-center justify-center text-bwxt-navy font-semibold text-[13px] flex-shrink-0"
                         aria-hidden="true"
                       >
                         {reaction.name[0]}
                       </div>
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-baseline gap-2 mb-1">
-                          <span className="font-semibold text-sm text-brand-navy">
+                        <div className="flex flex-wrap items-baseline gap-2 mb-0.5">
+                          <span className="font-semibold text-[14px] text-bwxt-navy">
                             {reaction.name}
                           </span>
-                          <span className="text-xs text-gray-400">
+                          <span className="text-[13px] text-bwxt-text-muted">
                             {reaction.role}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600 leading-relaxed italic">
+                        <p className="text-[15px] text-bwxt-text-primary leading-relaxed italic mt-1">
                           &ldquo;{reaction.reaction}&rdquo;
                         </p>
                       </div>
@@ -250,9 +234,9 @@ export default async function ConsequencePage({ params }: Props) {
             </section>
           </>
         ) : (
-          <section className="mb-8">
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <p className="text-gray-500 text-sm">
+          <section>
+            <div className="bg-white border border-bwxt-border rounded-xl shadow-card p-6">
+              <p className="text-[15px] text-bwxt-text-secondary">
                 Round {roundNumber} has been submitted. Review your KPI changes
                 below.
               </p>
@@ -260,17 +244,17 @@ export default async function ConsequencePage({ params }: Props) {
           </section>
         )}
 
-        {/* ── KPI changes ───────────────────────────────────────────────── */}
-        <section aria-labelledby="kpi-heading" className="mb-10">
+        {/* ── KPI Changes ─────────────────────────────────────────────── */}
+        <section aria-labelledby="kpi-heading">
           <h2
             id="kpi-heading"
-            className="text-brand-navy text-lg font-bold mb-1"
+            className="text-[18px] font-semibold text-bwxt-navy mb-1"
           >
             KPI Changes
           </h2>
           {hasKPIData ? (
             <>
-              <p className="text-gray-500 text-sm mb-4">
+              <p className="text-[15px] text-bwxt-text-secondary mb-4">
                 How your decisions moved the division&apos;s key performance
                 indicators. Arrows and numbers indicate direction and magnitude
                 of change.
@@ -313,8 +297,8 @@ export default async function ConsequencePage({ params }: Props) {
               </div>
             </>
           ) : (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <p className="text-gray-400 text-sm">
+            <div className="bg-white border border-bwxt-border rounded-xl shadow-card p-6">
+              <p className="text-[15px] text-bwxt-text-muted">
                 KPI snapshot data is not available. This can happen if the
                 database seed has not been applied. Contact your administrator.
               </p>
@@ -323,13 +307,14 @@ export default async function ConsequencePage({ params }: Props) {
         </section>
 
         {/* ── Continue ─────────────────────────────────────────────────── */}
-        <div className="border-t border-gray-200 pt-8">
+        <div className="border-t border-bwxt-border pt-8">
           <Link
             href={nextHref}
             className="
-              block w-full py-4 text-center bg-brand-navy text-white font-bold
-              text-base rounded-lg hover:bg-brand-navy/90 transition-colors
-              focus:outline-none focus:ring-2 focus:ring-brand-gold focus:ring-offset-2
+              block w-full max-w-[440px] mx-auto py-[14px] text-center
+              bg-bwxt-navy text-white font-semibold text-[15px] rounded-[14px]
+              hover:bg-bwxt-navy-dark transition-colors duration-150
+              focus:outline-none focus:ring-2 focus:ring-bwxt-navy focus:ring-offset-2
             "
           >
             {nextLabel}

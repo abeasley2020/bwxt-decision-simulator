@@ -109,6 +109,7 @@ export default async function ParticipantListPage() {
     .from("simulation_runs")
     .select("id, user_id, status, final_profile_id, completed_at")
     .eq("cohort_id", cohort.id)
+    .eq("is_preview", false)
     .in("user_id", participantUserIds.length > 0 ? participantUserIds : ["none"]);
 
   const runsByUser = new Map(

@@ -1,23 +1,22 @@
 /**
  * POST /api/admin/cohorts/[cohortId]/invite
  *
- * Invites a user to a cohort as a participant or faculty member.
+ * Adds a user to a cohort as a participant or faculty member.
  *
  * Logic:
- *  1. If a user with the given email exists in the `users` table:
- *     - Upsert into `cohort_memberships` with invitation_status = 'accepted'.
+ *  1. If a user with the given email exists in `users`:
+ *     - Check they are not already a member (409 if so).
+ *     - Insert into `cohort_memberships` with invitation_status = 'accepted'.
  *     - Returns { ok: true, existed: true }
  *  2. If no user exists:
- *     - Insert a record into `invitations` (no email is sent in MVP).
+ *     - Create a `users` row (email + role, empty names as placeholders).
+ *     - Insert into `cohort_memberships` with invitation_status = 'pending'.
  *     - Returns { ok: true, existed: false }
+ *     - Note: the new user cannot log in until a Supabase auth account is created
+ *       for their email and the public.users.id is aligned (MVP limitation).
  *
  * Accepts JSON body: { email: string, role: "participant" | "faculty" }
- *
  * Auth: admin role required.
- *
- * Constraint: The `invitations` table has no `role` column. For non-existing
- * users, the invitation records their email and cohort only; the role must be
- * assigned when they are manually added later (MVP limitation).
  */
 
 import { NextResponse } from "next/server";
@@ -29,7 +28,7 @@ export async function POST(
 ) {
   const supabase = createClient();
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Auth ──────────────────────────────────────────────────────────────────
 
   const {
     data: { user },
@@ -39,17 +38,17 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: userRow } = await supabase
+  const { data: adminRow } = await supabase
     .from("users")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (!userRow || userRow.role !== "admin") {
+  if (!adminRow || adminRow.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // ── Parse body ──────────────────────────────────────────────────────────────
+  // ── Parse body ────────────────────────────────────────────────────────────
 
   let body: { email?: string; role?: string };
   try {
@@ -68,7 +67,7 @@ export async function POST(
     );
   }
 
-  // ── Check if cohort exists ────────────────────────────────────────────────
+  // ── Check cohort exists ───────────────────────────────────────────────────
 
   const { data: cohort } = await supabase
     .from("cohorts")
@@ -77,10 +76,10 @@ export async function POST(
     .maybeSingle();
 
   if (!cohort) {
-    return NextResponse.json({ error: "Cohort not found" }, { status: 404 });
+    return NextResponse.json({ error: "Cohort not found." }, { status: 404 });
   }
 
-  // ── Check if user exists ─────────────────────────────────────────────────
+  // ── Check if user exists ──────────────────────────────────────────────────
 
   const { data: existingUser } = await supabase
     .from("users")
@@ -88,25 +87,35 @@ export async function POST(
     .eq("email", email)
     .maybeSingle();
 
+  const now = new Date().toISOString();
+
   if (existingUser) {
-    // User exists — add directly to cohort_memberships
-    const now = new Date().toISOString();
-    const { error } = await supabase
+    // ── Check they are not already a member ────────────────────────────────
+
+    const { data: existingMembership } = await supabase
       .from("cohort_memberships")
-      .upsert(
-        {
-          user_id: existingUser.id,
-          cohort_id: params.cohortId,
-          cohort_role: role,
-          invitation_status: "accepted",
-          invited_at: now,
-          assigned_at: now,
-        },
-        {
-          onConflict: "user_id,cohort_id",
-          ignoreDuplicates: false,
-        }
+      .select("id")
+      .eq("user_id", existingUser.id)
+      .eq("cohort_id", params.cohortId)
+      .maybeSingle();
+
+    if (existingMembership) {
+      return NextResponse.json(
+        { error: "This person is already a member of this cohort." },
+        { status: 409 }
       );
+    }
+
+    // ── Add to cohort ──────────────────────────────────────────────────────
+
+    const { error } = await supabase.from("cohort_memberships").insert({
+      user_id: existingUser.id,
+      cohort_id: params.cohortId,
+      cohort_role: role,
+      invitation_status: "accepted",
+      invited_at: now,
+      assigned_at: now,
+    });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -115,22 +124,42 @@ export async function POST(
     return NextResponse.json({ ok: true, existed: true });
   }
 
-  // User does not exist — write to invitations table (no email sent in MVP)
-  const token = crypto.randomUUID();
-  const expiresAt = new Date(
-    Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days
-  ).toISOString();
+  // ── User does not exist — create user record then add to cohort ───────────
 
-  const { error } = await supabase.from("invitations").insert({
-    email,
-    token,
-    cohort_id: params.cohortId,
-    status: "pending",
-    expires_at: expiresAt,
-  });
+  const { data: newUser, error: createUserError } = await supabase
+    .from("users")
+    .insert({
+      email,
+      first_name: "",
+      last_name: "",
+      role: role as string,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (createUserError) {
+    // Handle duplicate email race condition
+    if (createUserError.code === "23505") {
+      return NextResponse.json(
+        { error: "A user with this email was just created. Please try again." },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ error: createUserError.message }, { status: 500 });
+  }
+
+  const { error: membershipError } = await supabase
+    .from("cohort_memberships")
+    .insert({
+      user_id: newUser.id,
+      cohort_id: params.cohortId,
+      cohort_role: role,
+      invitation_status: "pending",
+      invited_at: now,
+    });
+
+  if (membershipError) {
+    return NextResponse.json({ error: membershipError.message }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, existed: false });

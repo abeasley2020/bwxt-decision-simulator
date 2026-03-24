@@ -44,15 +44,16 @@ export default function SingleSelectDecision({
               key={opt.key}
               htmlFor={inputId}
               className={`
-                flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer
+                flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer
                 transition-colors duration-100
-                focus-within:ring-2 focus-within:ring-brand-gold focus-within:ring-offset-1
+                focus-within:ring-2 focus-within:ring-bwxt-crimson focus-within:ring-offset-1
                 ${
                   isSelected
-                    ? "border-brand-blue bg-blue-50"
-                    : "border-gray-200 bg-white hover:border-brand-blue/40 hover:bg-gray-50"
+                    ? "border-bwxt-crimson bg-bwxt-crimson-light"
+                    : error
+                    ? "border-bwxt-danger bg-white"
+                    : "border-bwxt-border bg-white hover:border-bwxt-navy/30 hover:bg-bwxt-navy-light/50"
                 }
-                ${error ? "border-red-300" : ""}
               `}
             >
               <input
@@ -63,15 +64,15 @@ export default function SingleSelectDecision({
                 checked={isSelected}
                 onChange={() => onChange(opt.key)}
                 className="
-                  mt-0.5 h-4 w-4 text-brand-blue border-gray-400 cursor-pointer flex-shrink-0
-                  focus:ring-2 focus:ring-brand-gold focus:ring-offset-1 focus:outline-none
+                  mt-0.5 h-4 w-4 text-bwxt-crimson border-bwxt-border cursor-pointer flex-shrink-0
+                  focus:ring-2 focus:ring-bwxt-crimson focus:ring-offset-1 focus:outline-none
                 "
               />
               <div className="min-w-0">
-                <span className="block font-semibold text-sm text-brand-navy leading-snug">
+                <span className="block font-semibold text-[15px] text-bwxt-navy leading-snug">
                   {opt.label}
                 </span>
-                <span className="block text-xs text-gray-500 mt-1 leading-relaxed">
+                <span className="block text-[13px] text-bwxt-text-secondary mt-1 leading-relaxed">
                   {opt.description}
                 </span>
               </div>
@@ -84,7 +85,7 @@ export default function SingleSelectDecision({
         <p
           id={errorId}
           role="alert"
-          className="mt-2 text-sm text-red-700 flex items-center gap-1"
+          className="mt-2 text-[14px] text-bwxt-danger flex items-center gap-1"
         >
           <span aria-hidden="true" className="font-bold">!</span>
           {error}

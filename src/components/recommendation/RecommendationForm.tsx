@@ -141,22 +141,22 @@ export default function RecommendationForm({ runId }: Props) {
           const errorId = `${fieldId}-error`;
           const hasError = Boolean(errors[field.key]);
           return (
-            <div key={field.key} className="bg-white border border-gray-200 rounded-xl p-6">
+            <div key={field.key} className="bg-white border border-bwxt-border rounded-xl shadow-card p-6">
               <div className="mb-3">
-                <span className="text-xs text-brand-gold font-semibold uppercase tracking-widest">
+                <span className="text-[12px] font-semibold text-bwxt-crimson uppercase tracking-[0.06em]">
                   Question {idx + 1} of {FIELDS.length}
                 </span>
               </div>
               <label
                 htmlFor={fieldId}
-                className="block text-sm font-semibold text-brand-navy mb-1"
+                className="block text-[15px] font-semibold text-bwxt-navy mb-1"
               >
                 {field.label}
-                <span className="text-red-600 ml-1" aria-hidden="true">*</span>
+                <span className="text-bwxt-danger ml-1" aria-hidden="true">*</span>
               </label>
               <p
                 id={`${fieldId}-prompt`}
-                className="text-sm text-gray-500 mb-3 leading-relaxed"
+                className="text-[15px] text-bwxt-text-secondary mb-3 leading-[1.65]"
               >
                 {field.prompt}
               </p>
@@ -184,14 +184,14 @@ export default function RecommendationForm({ runId }: Props) {
                     .join(" ") || undefined
                 }
                 className={`
-                  w-full rounded-lg border px-4 py-3 text-sm text-gray-800
-                  placeholder:text-gray-300 resize-y min-h-[120px]
-                  focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent
+                  w-full rounded-lg border px-4 py-3 text-[15px] text-bwxt-navy
+                  placeholder:text-bwxt-text-muted resize-y min-h-[120px]
+                  focus:outline-none focus:border-bwxt-crimson focus:ring-1 focus:ring-bwxt-crimson
                   transition-colors
                   ${
                     hasError
-                      ? "border-red-400 bg-red-50/40"
-                      : "border-gray-200 bg-white"
+                      ? "border-bwxt-danger bg-bwxt-crimson-light/30"
+                      : "border-bwxt-border bg-white"
                   }
                 `}
               />
@@ -199,7 +199,7 @@ export default function RecommendationForm({ runId }: Props) {
                 <p
                   id={errorId}
                   role="alert"
-                  className="mt-1.5 text-xs text-red-600 font-medium"
+                  className="mt-1.5 text-[13px] text-bwxt-danger font-medium"
                 >
                   {errors[field.key]}
                 </p>
@@ -213,27 +213,27 @@ export default function RecommendationForm({ runId }: Props) {
       {submitError && (
         <div
           role="alert"
-          className="mt-6 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700"
+          className="mt-6 rounded-xl bg-bwxt-crimson-light border border-bwxt-crimson/30 px-4 py-3 text-[15px] text-bwxt-danger"
         >
           {submitError}
         </div>
       )}
 
-      <div className="mt-8 border-t border-gray-200 pt-6">
+      <div className="mt-8 border-t border-bwxt-border pt-6">
         <button
           type="submit"
           disabled={isSubmitting}
           aria-label={isSubmitting ? "Submitting your recommendation…" : undefined}
           className="
-            w-full py-4 bg-brand-navy text-white font-bold text-base rounded-lg
-            hover:bg-brand-navy/90 transition-colors
-            focus:outline-none focus:ring-2 focus:ring-brand-gold focus:ring-offset-2
+            w-full py-[14px] bg-bwxt-navy text-white font-semibold text-[15px]
+            rounded-[14px] hover:bg-bwxt-navy-dark transition-colors duration-150
+            focus:outline-none focus:ring-2 focus:ring-bwxt-navy focus:ring-offset-2
             disabled:opacity-60 disabled:cursor-not-allowed
           "
         >
-          {isSubmitting ? "Submitting…" : "Submit Executive Recommendation"}
+          {isSubmitting ? "Submitting\u2026" : "Submit Executive Recommendation"}
         </button>
-        <p className="mt-3 text-center text-xs text-gray-400">
+        <p className="mt-3 text-center text-[13px] text-bwxt-text-muted">
           This is your final submission. Your responses will be reviewed by
           faculty.
         </p>

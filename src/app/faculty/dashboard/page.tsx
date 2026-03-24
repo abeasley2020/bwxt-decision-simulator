@@ -117,11 +117,12 @@ export default async function FacultyDashboardPage() {
         .eq("cohort_id", cohort.id)
         .eq("cohort_role", "participant"),
 
-      // All simulation runs for this cohort
+      // All simulation runs for this cohort, excluding admin preview runs
       supabase
         .from("simulation_runs")
         .select("id, user_id, status, final_profile_id, completed_at")
-        .eq("cohort_id", cohort.id),
+        .eq("cohort_id", cohort.id)
+        .eq("is_preview", false),
 
       // Scenario rounds to find round 3 ID
       supabase

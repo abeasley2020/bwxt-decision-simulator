@@ -101,6 +101,7 @@ export default async function ReadinessPage({
           .from("simulation_runs")
           .select("user_id, status, last_active_at, completed_at")
           .eq("cohort_id", params.cohortId)
+          .eq("is_preview", false)
           .in("user_id", participantIds)
       : { data: [] };
 

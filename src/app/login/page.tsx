@@ -1,72 +1,150 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const supabase = createClient();
+  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setError(error.message);
+      setError("Invalid email or password.");
       setLoading(false);
       return;
     }
 
-    setSubmitted(true);
-    setLoading(false);
+    router.push("/simulation");
   }
 
   return (
-    <div className="min-h-screen bg-brand-navy flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Logo / Wordmark */}
-        <div className="mb-10 text-center">
-          <div className="text-brand-gold text-sm font-semibold tracking-widest uppercase mb-2">
-            BWXT Leadership Academy
-          </div>
-          <h1 className="text-white text-3xl font-bold tracking-tight">
-            Enterprise Decision Simulator
-          </h1>
+    <div
+      style={{ backgroundColor: "#17153A" }}
+      className="relative min-h-screen flex items-center justify-center px-4"
+    >
+      {/* Subtle radial gradient texture overlay */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(ellipse at 30% 50%, rgba(158,48,57,0.08) 0%, transparent 60%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Card */}
+      <div
+        style={{
+          backgroundColor: "#FFFFFF",
+          borderRadius: "16px",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.25)",
+          maxWidth: "420px",
+          width: "100%",
+          padding: "clamp(32px, 5vw, 48px)",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        {/* 1. Logo / wordmark */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+            marginBottom: "24px",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontWeight: 700,
+              fontSize: "22px",
+              color: "#17153A",
+              lineHeight: 1,
+            }}
+          >
+            BWXT
+          </span>
+          <div
+            aria-hidden="true"
+            style={{
+              width: "1px",
+              height: "16px",
+              backgroundColor: "#E0DFF0",
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontFamily: "Inter, system-ui, sans-serif",
+              fontWeight: 400,
+              fontSize: "13px",
+              color: "#9896B0",
+              lineHeight: 1,
+            }}
+          >
+            Leadership Academy
+          </span>
         </div>
 
-        {submitted ? (
-          <div className="bg-white/10 border border-white/20 rounded-lg p-8 text-center">
-            <div className="text-brand-gold text-4xl mb-4">✓</div>
-            <h2 className="text-white text-xl font-semibold mb-2">
-              Check your email
-            </h2>
-            <p className="text-white/70 text-sm">
-              We sent a secure login link to{" "}
-              <span className="text-white font-medium">{email}</span>. The link
-              expires in 60 minutes.
-            </p>
-          </div>
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            className="bg-white/10 border border-white/20 rounded-lg p-8"
-          >
-            <div className="mb-6">
+        {/* 2. Heading */}
+        <h1
+          style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontWeight: 700,
+            fontSize: "28px",
+            color: "#17153A",
+            textAlign: "center",
+            marginBottom: "8px",
+            lineHeight: 1.2,
+          }}
+        >
+          Enterprise Decision Simulator
+        </h1>
+
+        {/* 3. Subheading */}
+        <p
+          style={{
+            fontFamily: "Inter, system-ui, sans-serif",
+            fontWeight: 400,
+            fontSize: "14px",
+            color: "#5A5880",
+            textAlign: "center",
+            marginBottom: "32px",
+            lineHeight: 1.5,
+          }}
+        >
+          Senior leadership pre-work for the BWXT Leadership Academy.
+        </p>
+
+        <form onSubmit={handleSubmit}>
+            {/* Email field */}
+            <div style={{ marginBottom: "16px" }}>
               <label
                 htmlFor="email"
-                className="block text-white/80 text-sm font-medium mb-2"
+                style={{
+                  display: "block",
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  fontWeight: 500,
+                  fontSize: "13px",
+                  color: "#17153A",
+                  marginBottom: "8px",
+                }}
               >
                 Work email address
               </label>
@@ -77,29 +155,129 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@bwxt.com"
-                className="w-full px-4 py-3 rounded-md bg-white/5 border border-white/20 text-white placeholder-white/30 focus:outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold"
+                style={{
+                  display: "block",
+                  width: "100%",
+                  height: "44px",
+                  border: "1px solid #E0DFF0",
+                  borderRadius: "8px",
+                  padding: "0 14px",
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  fontWeight: 400,
+                  fontSize: "15px",
+                  color: "#17153A",
+                  backgroundColor: "#FFFFFF",
+                  boxSizing: "border-box",
+                  outline: "none",
+                  transition: "border-color 100ms, box-shadow 100ms",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#17153A";
+                  e.target.style.boxShadow = "0 0 0 3px rgba(23,21,58,0.10)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#E0DFF0";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+            </div>
+
+            {/* Password field */}
+            <div style={{ marginBottom: "16px" }}>
+              <label
+                htmlFor="password"
+                style={{
+                  display: "block",
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  fontWeight: 500,
+                  fontSize: "13px",
+                  color: "#17153A",
+                  marginBottom: "8px",
+                }}
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={{
+                  display: "block",
+                  width: "100%",
+                  height: "44px",
+                  border: "1px solid #E0DFF0",
+                  borderRadius: "8px",
+                  padding: "0 14px",
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  fontWeight: 400,
+                  fontSize: "15px",
+                  color: "#17153A",
+                  backgroundColor: "#FFFFFF",
+                  boxSizing: "border-box",
+                  outline: "none",
+                  transition: "border-color 100ms, box-shadow 100ms",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#17153A";
+                  e.target.style.boxShadow = "0 0 0 3px rgba(23,21,58,0.10)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#E0DFF0";
+                  e.target.style.boxShadow = "none";
+                }}
               />
             </div>
 
             {error && (
-              <div className="mb-4 px-4 py-3 rounded-md bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
+              <div
+                role="alert"
+                style={{
+                  marginBottom: "16px",
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  backgroundColor: "rgba(158,48,57,0.07)",
+                  border: "1px solid rgba(158,48,57,0.25)",
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  fontSize: "13px",
+                  color: "#5A5880",
+                }}
+              >
                 {error}
               </div>
             )}
 
+            {/* Submit button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-6 bg-brand-gold text-brand-navy font-semibold rounded-md hover:bg-brand-gold/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              style={{
+                display: "block",
+                width: "100%",
+                height: "48px",
+                backgroundColor: loading ? "#2E2B5E" : "#17153A",
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: "10px",
+                fontFamily: "Inter, system-ui, sans-serif",
+                fontWeight: loading ? 400 : 600,
+                fontStyle: loading ? "italic" : "normal",
+                fontSize: "15px",
+                cursor: loading ? "not-allowed" : "pointer",
+                transition: "background-color 150ms",
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) (e.target as HTMLButtonElement).style.backgroundColor = "#0E0C27";
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) (e.target as HTMLButtonElement).style.backgroundColor = "#17153A";
+              }}
             >
-              {loading ? "Sending link..." : "Send login link"}
+              {loading ? "Signing in…" : "Sign in"}
             </button>
-
-            <p className="mt-4 text-center text-white/40 text-xs">
-              You must be invited to access this system.
-            </p>
           </form>
-        )}
       </div>
     </div>
   );

@@ -5,6 +5,7 @@
  */
 
 import FacultyNav from "./FacultyNav";
+import SignOutButton from "@/components/SignOutButton";
 
 export default function FacultyLayout({
   children,
@@ -27,9 +28,7 @@ export default function FacultyLayout({
               Operation Iron Horizon
             </span>
           </div>
-          <span className="text-white/40 text-xs hidden sm:block">
-            BWXT Leadership Academy
-          </span>
+          <SignOutButton />
         </div>
 
         {/* ── Navigation ────────────────────────────────────────────────── */}

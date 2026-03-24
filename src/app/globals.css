@@ -1,3 +1,29 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --bwxt-navy: #17153A;
+    --bwxt-navy-dark: #0E0C27;
+    --bwxt-navy-light: #EEEDF7;
+    --bwxt-crimson: #9E3039;
+    --bwxt-crimson-dark: #7A2430;
+    --bwxt-crimson-light: #F5E6E8;
+    --bwxt-bg: #F4F4F7;
+    --bwxt-border: #E0DFF0;
+    --bwxt-text-primary: #17153A;
+    --bwxt-text-secondary: #5A5880;
+    --bwxt-text-muted: #9896B0;
+  }
+  html {
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    background-color: var(--bwxt-bg);
+    color: var(--bwxt-text-primary);
+    line-height: 1.65;
+  }
+}

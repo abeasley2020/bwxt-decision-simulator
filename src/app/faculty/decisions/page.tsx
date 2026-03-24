@@ -117,6 +117,7 @@ export default async function DecisionPatternsPage() {
     .select("id, user_id")
     .eq("cohort_id", cohort.id)
     .eq("status", "completed")
+    .eq("is_preview", false)
     .in(
       "user_id",
       participantUserIds.length > 0 ? participantUserIds : ["none"]

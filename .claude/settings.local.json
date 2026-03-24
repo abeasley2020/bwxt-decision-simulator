@@ -24,7 +24,10 @@
       "Bash(node -e \"require\\(''''./.next/server/app/simulation/[runId]/results/page.js''''\\)\")",
       "Bash(node --experimental-vm-modules -e \":*)",
       "Bash(ls .next/server/app/simulation/[runId]/)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(cat:*)",
+      "Bash(find /c/Users/kingd/bwxt-enterprise-decision-simulator/src/types -type f -name *.ts)",
+      "Bash(xargs ls:*)"
     ]
   }
 }

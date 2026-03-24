@@ -32,26 +32,32 @@ export default function KPIChangeCard({ label, before, after }: KPIChangeCardPro
   const directionSymbol = isPositive ? "▲" : isNegative ? "▼" : "=";
 
   const deltaColorClass = isPositive
-    ? "text-green-700 bg-green-50 border-green-200"
+    ? "text-bwxt-success bg-green-50 border-green-200"
     : isNegative
-    ? "text-red-700 bg-red-50 border-red-200"
-    : "text-gray-500 bg-gray-50 border-gray-200";
+    ? "text-bwxt-danger bg-bwxt-crimson-light border-bwxt-crimson/20"
+    : "text-bwxt-text-muted bg-bwxt-border/40 border-bwxt-border";
+
+  const fillColorClass = isPositive
+    ? "bg-bwxt-success"
+    : isNegative
+    ? "bg-bwxt-danger"
+    : "bg-bwxt-text-muted";
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <div className="text-sm font-semibold text-gray-800 mb-3">{label}</div>
+    <div className="bg-white border border-bwxt-border rounded-xl shadow-card p-4">
+      <div className="text-[12px] font-medium text-bwxt-text-muted uppercase tracking-[0.05em] mb-3">{label}</div>
 
       {/* Before → After */}
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-gray-500 text-sm tabular-nums">{before}</span>
-        <span className="text-gray-400 text-xs" aria-hidden="true">→</span>
-        <span className="text-gray-900 font-bold text-sm tabular-nums">{after}</span>
-        <span className="text-gray-400 text-xs">/ 100</span>
+        <span className="text-bwxt-text-muted text-[14px] tabular-nums">{before}</span>
+        <span className="text-bwxt-border text-xs" aria-hidden="true">→</span>
+        <span className="text-bwxt-navy font-bold text-[14px] tabular-nums">{after}</span>
+        <span className="text-bwxt-text-muted text-[12px]">/ 100</span>
       </div>
 
       {/* Delta badge — color + symbol + text (WCAG 1.4.1) */}
       <div
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-semibold ${deltaColorClass}`}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[12px] font-semibold ${deltaColorClass}`}
         aria-label={deltaLabel}
       >
         <span aria-hidden="true">{directionSymbol}</span>
@@ -59,25 +65,17 @@ export default function KPIChangeCard({ label, before, after }: KPIChangeCardPro
       </div>
 
       {/* Progress bar — decorative, aria-hidden */}
-      <div className="mt-3" aria-hidden="true">
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden relative">
-          {/* Baseline marker */}
-          <div
-            className="absolute top-0 h-full w-0.5 bg-gray-300 z-10"
-            style={{ left: `${before}%` }}
-          />
-          {/* Current value fill */}
-          <div
-            className={`h-full rounded-full transition-all ${
-              isPositive
-                ? "bg-green-500"
-                : isNegative
-                ? "bg-red-500"
-                : "bg-gray-400"
-            }`}
-            style={{ width: `${after}%` }}
-          />
-        </div>
+      <div className="mt-3 h-[4px] bg-bwxt-border rounded-full overflow-hidden relative" aria-hidden="true">
+        {/* Baseline marker */}
+        <div
+          className="absolute top-0 h-full w-0.5 bg-bwxt-text-muted z-10"
+          style={{ left: `${before}%` }}
+        />
+        {/* Current value fill */}
+        <div
+          className={`h-full rounded-full transition-all ${fillColorClass}`}
+          style={{ width: `${after}%` }}
+        />
       </div>
     </div>
   );

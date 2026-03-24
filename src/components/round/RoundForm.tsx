@@ -199,9 +199,9 @@ export default function RoundForm({
         <div
           role="alert"
           aria-live="assertive"
-          className="mb-6 flex items-start gap-3 p-4 bg-red-50 border border-red-300 rounded-lg text-red-700 text-sm"
+          className="mb-6 flex items-start gap-3 p-4 bg-bwxt-crimson-light border border-bwxt-crimson/30 rounded-xl text-bwxt-crimson text-[15px]"
         >
-          <span aria-hidden="true" className="font-bold mt-0.5">⚠</span>
+          <span aria-hidden="true" className="font-bold mt-0.5">&#9888;</span>
           <span>{submitError}</span>
         </div>
       )}
@@ -224,19 +224,19 @@ export default function RoundForm({
             <section
               key={decision.key}
               aria-labelledby={`decision-heading-${decision.key}`}
-              className={`bg-white border rounded-xl p-6 ${
-                error ? "border-red-300" : "border-gray-200"
+              className={`bg-white border rounded-xl shadow-card p-6 ${
+                error ? "border-bwxt-danger" : "border-bwxt-border"
               }`}
             >
               {/* Decision header */}
               <div className="mb-4">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                <div className="text-[12px] font-medium text-bwxt-text-muted uppercase tracking-[0.04em] mb-1">
                   Decision {index + 1} of {decisions.length}
                   {" · "}
                   {decision.decisionType.replace(/_/g, " ")}
                   {constraintText}
                   {decision.isRequired && (
-                    <span className="text-red-500 ml-1" aria-hidden="true">
+                    <span className="text-bwxt-danger ml-1" aria-hidden="true">
                       *
                     </span>
                   )}
@@ -247,11 +247,11 @@ export default function RoundForm({
                     decisionRefs.current[decision.key] = el;
                   }}
                   tabIndex={-1}
-                  className="text-brand-navy font-bold text-base leading-snug mb-2 focus:outline-none"
+                  className="text-bwxt-navy font-semibold text-[16px] leading-snug mb-2 focus:outline-none"
                 >
                   {decision.title}
                 </h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
+                <p className="text-[15px] text-bwxt-text-secondary leading-[1.65]">
                   {decision.prompt}
                 </p>
               </div>
@@ -295,7 +295,7 @@ export default function RoundForm({
       </div>
 
       {/* Required field notice */}
-      <p className="mt-6 text-xs text-gray-400">
+      <p className="mt-6 text-[13px] text-bwxt-text-muted">
         <span aria-hidden="true">*</span>{" "}
         <span className="sr-only">Asterisk indicates </span>Required
       </p>
@@ -307,22 +307,22 @@ export default function RoundForm({
           disabled={submitting}
           aria-disabled={submitting}
           className="
-            w-full py-4 bg-brand-navy text-white font-bold text-base rounded-lg
-            hover:bg-brand-navy/90 disabled:opacity-60 disabled:cursor-not-allowed
-            focus:outline-none focus:ring-2 focus:ring-brand-gold focus:ring-offset-2
-            transition-colors
+            bg-bwxt-navy hover:bg-bwxt-navy-dark text-white font-semibold text-[15px]
+            rounded-[14px] py-[14px] w-full transition-colors duration-150
+            disabled:opacity-60 disabled:cursor-not-allowed
+            focus:outline-none focus:ring-2 focus:ring-bwxt-navy focus:ring-offset-2
           "
         >
           {submitting ? (
             <span>
-              <span aria-hidden="true">Submitting…</span>
+              <span aria-hidden="true">Submitting&hellip;</span>
               <span className="sr-only">Submitting your decisions, please wait.</span>
             </span>
           ) : (
             "Submit Decisions"
           )}
         </button>
-        <p className="mt-3 text-xs text-center text-gray-400">
+        <p className="mt-3 text-[13px] text-center text-bwxt-text-muted">
           Your decisions are final once submitted and cannot be changed.
         </p>
       </div>

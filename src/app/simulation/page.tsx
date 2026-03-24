@@ -21,16 +21,19 @@ export default async function SimulationPage() {
 
   if (!user) redirect("/login");
 
-  // Faculty and admin belong in the faculty dashboard, not the simulation flow
+  // Faculty belong in the faculty dashboard. Admins may enter the simulation
+  // as a preview run (is_preview = true) so they can test the full flow.
   const { data: userRow } = await supabase
     .from("users")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (userRow?.role === "faculty" || userRow?.role === "admin") {
+  if (userRow?.role === "faculty") {
     redirect("/faculty/dashboard");
   }
+
+  const isAdmin = userRow?.role === "admin";
 
   // Fetch all runs for this user in one query
   const { data: runs } = await supabase
@@ -76,6 +79,7 @@ export default async function SimulationPage() {
           scenario_version_id: cohort.scenario_version_id,
           status: "not_started",
           current_round_number: 1,
+          is_preview: isAdmin,
         })
         .select("id")
         .single();

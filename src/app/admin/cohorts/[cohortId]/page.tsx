@@ -16,6 +16,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import StatusControls from "./StatusControls";
 import InviteForm from "./InviteForm";
+import RemoveMemberButton from "./RemoveMemberButton";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ function formatDatetime(d: string | null): string {
 type MemberRow = {
   user_id: string;
   invitation_status: string;
+  invited_at: string | null;
   users: Array<{ id: string; first_name: string; last_name: string; email: string }>;
 };
 
@@ -96,12 +98,12 @@ export default async function CohortManagePage({
         .maybeSingle(),
       supabase
         .from("cohort_memberships")
-        .select("user_id, invitation_status, users(id, first_name, last_name, email)")
+        .select("user_id, invitation_status, invited_at, users(id, first_name, last_name, email)")
         .eq("cohort_id", params.cohortId)
         .eq("cohort_role", "participant"),
       supabase
         .from("cohort_memberships")
-        .select("user_id, invitation_status, users(id, first_name, last_name, email)")
+        .select("user_id, invitation_status, invited_at, users(id, first_name, last_name, email)")
         .eq("cohort_id", params.cohortId)
         .eq("cohort_role", "faculty"),
     ]);
@@ -118,6 +120,7 @@ export default async function CohortManagePage({
           .from("simulation_runs")
           .select("user_id, status, completed_at")
           .eq("cohort_id", params.cohortId)
+          .eq("is_preview", false)
           .in("user_id", participantIds)
       : { data: [] };
 
@@ -134,22 +137,26 @@ export default async function CohortManagePage({
     const u = m.users[0] ?? null;
     const run = runsByUser.get(m.user_id);
     const simStatus: string = run?.status ?? "not_started";
+    const fullName = u ? `${u.first_name} ${u.last_name}`.trim() : "";
     return {
       userId: m.user_id,
-      name: u ? `${u.first_name} ${u.last_name}`.trim() : "Unknown",
+      name: fullName || u?.email || "Unknown",
       email: u?.email ?? "—",
       simStatus,
       completedAt: run?.completed_at ?? null,
+      invitedAt: m.invited_at,
     };
   });
 
   const faculty = (facultyMembershipsRes.data as MemberRow[] ?? []).map((m) => {
     const u = m.users[0] ?? null;
+    const fullName = u ? `${u.first_name} ${u.last_name}`.trim() : "";
     return {
       userId: m.user_id,
-      name: u ? `${u.first_name} ${u.last_name}`.trim() : "Unknown",
+      name: fullName || u?.email || "Unknown",
       email: u?.email ?? "—",
       invitationStatus: m.invitation_status,
+      invitedAt: m.invited_at,
     };
   });
 
@@ -362,6 +369,15 @@ export default async function CohortManagePage({
                     >
                       Completed
                     </th>
+                    <th
+                      scope="col"
+                      className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                    >
+                      Added
+                    </th>
+                    <th scope="col" className="px-5 py-3">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -391,6 +407,22 @@ export default async function CohortManagePage({
                               year: "numeric",
                             })
                           : "—"}
+                      </td>
+                      <td className="px-5 py-3 text-gray-400 text-xs tabular-nums">
+                        {p.invitedAt
+                          ? new Date(p.invitedAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : "—"}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <RemoveMemberButton
+                          cohortId={cohort.id}
+                          userId={p.userId}
+                          memberName={p.name}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -450,6 +482,15 @@ export default async function CohortManagePage({
                     >
                       Status
                     </th>
+                    <th
+                      scope="col"
+                      className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                    >
+                      Added
+                    </th>
+                    <th scope="col" className="px-5 py-3">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -476,6 +517,22 @@ export default async function CohortManagePage({
                             ? "Accepted"
                             : "Pending"}
                         </span>
+                      </td>
+                      <td className="px-5 py-3 text-gray-400 text-xs tabular-nums">
+                        {f.invitedAt
+                          ? new Date(f.invitedAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : "—"}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <RemoveMemberButton
+                          cohortId={cohort.id}
+                          userId={f.userId}
+                          memberName={f.name}
+                        />
                       </td>
                     </tr>
                   ))}

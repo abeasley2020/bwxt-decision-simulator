@@ -23,6 +23,8 @@ import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
 import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
 import SelfAssessmentForm from "@/components/orientation/SelfAssessmentForm";
+import SimulationNav from "@/components/SimulationNav";
+import PreviewBanner from "@/components/simulation/PreviewBanner";
 
 interface Props {
   params: { runId: string };
@@ -38,7 +40,7 @@ export default async function OrientationPage({ params }: Props) {
 
   const { data: run } = await supabase
     .from("simulation_runs")
-    .select("id, status, current_round_number, user_id")
+    .select("id, status, current_round_number, user_id, is_preview")
     .eq("id", params.runId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -54,42 +56,48 @@ export default async function OrientationPage({ params }: Props) {
   const scoringList = Object.values(SCORING_DIMENSIONS);
 
   return (
-    <div className="min-h-screen bg-brand-light">
-      {/* Header */}
-      <header className="bg-brand-navy text-white px-6 py-5">
-        <div className="max-w-3xl mx-auto">
-          <div
-            className="text-brand-gold text-xs font-semibold tracking-widest uppercase mb-1"
-            aria-hidden="true"
-          >
-            BWXT Leadership Academy
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">
+    <div className="min-h-screen bg-bwxt-bg">
+      <SimulationNav />
+      {run.is_preview && <PreviewBanner />}
+
+      {/* Hero section — full bleed navy */}
+      <div className="bg-bwxt-navy">
+        <div className="max-w-[880px] mx-auto px-6 py-16">
+          <h1 className="font-playfair font-bold text-[44px] text-white leading-tight tracking-tight">
             Operation Iron Horizon
           </h1>
-          <p className="text-white/50 text-sm mt-0.5">
-            Executive Decision Simulation &mdash; Orientation
+          <div className="w-[60px] h-[3px] bg-bwxt-crimson my-4" aria-hidden="true" />
+          <p className="text-[16px] text-white/70">
+            Executive Decision Simulation &mdash; Leadership Assessment
           </p>
+          <div className="flex flex-wrap gap-3 mt-5">
+            <span className="bg-white/10 border border-white/20 rounded-full px-3 py-1 text-white text-[13px] font-medium">
+              ~{IRON_HORIZON_VERSION.estimatedDurationMinutes} min
+            </span>
+            <span className="bg-white/10 border border-white/20 rounded-full px-3 py-1 text-white text-[13px] font-medium">
+              3 Rounds &middot; 12 Decisions
+            </span>
+          </div>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-3xl mx-auto px-6 py-10">
-        {/* ── Scenario intro ─────────────────────────────────────────────── */}
-        <section aria-labelledby="section-scenario" className="mb-10">
+      <main className="max-w-[880px] mx-auto px-6 py-10 space-y-10">
+        {/* ── Your Scenario ──────────────────────────────────────────────── */}
+        <section aria-labelledby="section-scenario">
           <h2
             id="section-scenario"
-            className="text-brand-navy text-xl font-bold mb-4"
+            className="text-[18px] font-semibold text-bwxt-navy mb-4"
           >
             Your Scenario
           </h2>
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="bg-white border border-bwxt-border rounded-xl shadow-card p-6">
             {IRON_HORIZON_VERSION.introContent
               .split("\n")
               .filter(Boolean)
               .map((line, i) => (
                 <p
                   key={i}
-                  className="text-gray-700 text-sm leading-relaxed mb-3 last:mb-0"
+                  className="text-[15px] text-bwxt-text-primary leading-[1.65] mb-3 last:mb-0"
                 >
                   {line}
                 </p>
@@ -97,15 +105,15 @@ export default async function OrientationPage({ params }: Props) {
           </div>
         </section>
 
-        {/* ── Simulation logistics ───────────────────────────────────────── */}
-        <section aria-labelledby="section-logistics" className="mb-10">
+        {/* ── Before You Begin ───────────────────────────────────────────── */}
+        <section aria-labelledby="section-logistics">
           <h2
             id="section-logistics"
-            className="text-brand-navy text-xl font-bold mb-4"
+            className="text-[18px] font-semibold text-bwxt-navy mb-4"
           >
             Before You Begin
           </h2>
-          <ul className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+          <ul className="bg-white border border-bwxt-border rounded-xl shadow-card divide-y divide-bwxt-border">
             {[
               `This simulation takes approximately ${IRON_HORIZON_VERSION.estimatedDurationMinutes} minutes to complete.`,
               "You will face three rounds of decisions, each with real consequences.",
@@ -115,10 +123,10 @@ export default async function OrientationPage({ params }: Props) {
             ].map((item, i) => (
               <li
                 key={i}
-                className="flex items-start gap-3 px-5 py-4 text-sm text-gray-700"
+                className="flex items-start gap-3 px-5 py-4 text-[15px] text-bwxt-text-primary"
               >
                 <span
-                  className="text-brand-gold font-bold mt-0.5 flex-shrink-0"
+                  className="text-bwxt-crimson font-bold mt-0.5 flex-shrink-0 text-[16px]"
                   aria-hidden="true"
                 >
                   ✓
@@ -129,27 +137,27 @@ export default async function OrientationPage({ params }: Props) {
           </ul>
         </section>
 
-        {/* ── Evaluation dimensions ──────────────────────────────────────── */}
-        <section aria-labelledby="section-dimensions" className="mb-10">
+        {/* ── Evaluation Dimensions ──────────────────────────────────────── */}
+        <section aria-labelledby="section-dimensions">
           <h2
             id="section-dimensions"
-            className="text-brand-navy text-xl font-bold mb-1"
+            className="text-[18px] font-semibold text-bwxt-navy mb-1"
           >
             What You Will Be Evaluated On
           </h2>
-          <p className="text-gray-500 text-sm mb-4">
+          <p className="text-[15px] text-bwxt-text-secondary mb-4">
             Your decisions are scored across seven leadership dimensions.
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
             {scoringList.map((dim) => (
               <div
                 key={dim.key}
-                className="bg-white border border-gray-200 rounded-lg px-4 py-3"
+                className="bg-white border border-bwxt-border rounded-xl shadow-card px-4 py-3"
               >
-                <div className="font-semibold text-sm text-brand-navy mb-0.5">
+                <div className="font-semibold text-[14px] text-bwxt-navy mb-1">
                   {dim.label}
                 </div>
-                <div className="text-xs text-gray-500 leading-snug">
+                <div className="text-[13px] text-bwxt-text-secondary leading-snug">
                   {dim.description}
                 </div>
               </div>
@@ -157,100 +165,66 @@ export default async function OrientationPage({ params }: Props) {
           </div>
         </section>
 
-        {/* ── KPI baseline ───────────────────────────────────────────────── */}
-        <section aria-labelledby="section-kpis" className="mb-10">
+        {/* ── Your Starting Position ─────────────────────────────────────── */}
+        <section aria-labelledby="section-kpis">
           <h2
             id="section-kpis"
-            className="text-brand-navy text-xl font-bold mb-1"
+            className="text-[18px] font-semibold text-bwxt-navy mb-1"
           >
-            Your Starting KPI Baseline
+            Your Starting Position
           </h2>
-          <p className="text-gray-500 text-sm mb-4">
+          <p className="text-[15px] text-bwxt-text-secondary mb-4">
             These are the division&apos;s indicators when you take over. Your
             decisions will move them up or down.
           </p>
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <caption className="sr-only">
-                Initial KPI values at the start of your simulation
-              </caption>
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th
-                    scope="col"
-                    className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide"
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {kpiList.map((kpi) => {
+              const value = initialKPIs[kpi.key];
+              return (
+                <div
+                  key={kpi.key}
+                  className="bg-white border border-bwxt-border rounded-xl shadow-card p-4"
+                >
+                  <div className="text-[12px] font-medium text-bwxt-text-muted uppercase tracking-[0.05em] mb-2">
+                    {kpi.label}
+                  </div>
+                  <div className="text-[28px] font-semibold text-bwxt-navy leading-none mb-3 tabular-nums">
+                    {value}
+                  </div>
+                  <div
+                    role="progressbar"
+                    aria-valuenow={value}
+                    aria-valuemin={kpi.minValue}
+                    aria-valuemax={kpi.maxValue}
+                    aria-label={`${kpi.label}: ${value} out of ${kpi.maxValue}`}
+                    className="h-[4px] bg-bwxt-border rounded-full overflow-hidden"
                   >
-                    Indicator
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide"
-                  >
-                    Description
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-24"
-                  >
-                    Starting
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {kpiList.map((kpi) => {
-                  const value = initialKPIs[kpi.key];
-                  return (
-                    <tr key={kpi.key} className="hover:bg-gray-50/50">
-                      <td className="px-5 py-3 font-semibold text-brand-navy">
-                        {kpi.label}
-                      </td>
-                      <td className="px-5 py-3 text-gray-500 text-xs leading-snug">
-                        {kpi.description}
-                      </td>
-                      <td className="px-5 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {/* Accessible progress bar */}
-                          <div
-                            role="progressbar"
-                            aria-valuenow={value}
-                            aria-valuemin={kpi.minValue}
-                            aria-valuemax={kpi.maxValue}
-                            aria-label={`${kpi.label}: ${value} out of ${kpi.maxValue}`}
-                            className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden"
-                          >
-                            <div
-                              className="h-full bg-brand-blue rounded-full"
-                              style={{ width: `${value}%` }}
-                            />
-                          </div>
-                          <span className="font-semibold text-brand-navy tabular-nums w-8 text-right">
-                            {value}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    <div
+                      className="h-full bg-bwxt-navy rounded-full"
+                      style={{ width: `${value}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
 
-        {/* ── Self-assessment + Begin form ───────────────────────────────── */}
-        <section aria-labelledby="section-selfassess" className="mb-10">
+        {/* ── Self-Assessment + Begin Form ───────────────────────────────── */}
+        <section aria-labelledby="section-selfassess">
           <h2
             id="section-selfassess"
-            className="text-brand-navy text-xl font-bold mb-1"
+            className="text-[18px] font-semibold text-bwxt-navy mb-1"
           >
             Self-Assessment
           </h2>
-          <p className="text-gray-500 text-sm mb-6">
+          <p className="text-[15px] text-bwxt-text-secondary mb-6">
             Before you begin, answer four short questions about your current
             experience level. This helps calibrate your results and is not
             scored.
           </p>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="bg-white border border-bwxt-border rounded-xl shadow-card p-6">
             {/*
              * All self-assessment fields and the Begin button are in one form.
              * Required attributes on radio groups enforce completion via the
@@ -262,18 +236,19 @@ export default async function OrientationPage({ params }: Props) {
             >
               <SelfAssessmentForm />
 
-              <div className="mt-8 pt-6 border-t border-gray-100">
+              <div className="mt-8 pt-6 border-t border-bwxt-border">
                 <button
                   type="submit"
                   className="
-                    w-full py-4 bg-brand-gold text-brand-navy font-bold text-base
-                    rounded-lg hover:bg-brand-gold/90 transition-colors
-                    focus:outline-none focus:ring-2 focus:ring-brand-gold focus:ring-offset-2
+                    w-full max-w-[440px] mx-auto block py-[14px] bg-bwxt-navy text-white
+                    font-semibold text-[15px] rounded-[14px] hover:bg-bwxt-navy-dark
+                    transition-colors duration-150
+                    focus:outline-none focus:ring-2 focus:ring-bwxt-navy focus:ring-offset-2
                   "
                 >
-                  Begin Simulation
+                  Begin Simulation &rarr;
                 </button>
-                <p className="mt-3 text-center text-xs text-gray-400">
+                <p className="text-center text-[13px] text-bwxt-text-muted mt-3">
                   Your first decision begins immediately after you click this
                   button.
                 </p>

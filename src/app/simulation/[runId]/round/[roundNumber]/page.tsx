@@ -15,6 +15,8 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
 import RoundForm from "@/components/round/RoundForm";
+import SimulationNav from "@/components/SimulationNav";
+import PreviewBanner from "@/components/simulation/PreviewBanner";
 
 interface Props {
   params: { runId: string; roundNumber: string };
@@ -33,7 +35,7 @@ export default async function RoundPage({ params }: Props) {
 
   const { data: run } = await supabase
     .from("simulation_runs")
-    .select("id, status, current_round_number, user_id")
+    .select("id, status, current_round_number, user_id, is_preview")
     .eq("id", params.runId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -60,55 +62,44 @@ export default async function RoundPage({ params }: Props) {
   if (!round) notFound();
 
   return (
-    <div className="min-h-screen bg-brand-light">
-      {/* ── Header / progress bar ──────────────────────────────────────── */}
-      <header className="bg-brand-navy text-white">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <div>
-            <div
-              className="text-brand-gold text-xs font-semibold tracking-widest uppercase mb-0.5"
-              aria-hidden="true"
-            >
-              Round {round.roundNumber} of 3
-            </div>
-            <h1 className="text-white font-bold text-lg leading-tight">
-              {round.title}
-            </h1>
-          </div>
-          <div className="text-white/40 text-xs text-right hidden sm:block">
-            <div>Operation Iron Horizon</div>
-            <div className="mt-0.5 flex gap-1" aria-label="Round progress">
-              {[1, 2, 3].map((n) => (
-                <div
-                  key={n}
-                  className={`h-1 w-8 rounded-full ${
-                    n <= roundNumber ? "bg-brand-gold" : "bg-white/20"
-                  }`}
-                  aria-hidden="true"
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-bwxt-bg">
+      <SimulationNav roundLabel={`Round ${roundNumber} of 3`} />
+      {run.is_preview && <PreviewBanner />}
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
-        {/* ── Situation briefing ──────────────────────────────────────── */}
-        <section aria-labelledby="briefing-heading" className="mb-8">
+      {/* Round header strip */}
+      <div className="bg-bwxt-navy-light border-b border-bwxt-border">
+        <div className="max-w-[880px] mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="bg-bwxt-navy text-white text-[12px] font-semibold px-3 py-1 rounded-full">
+              Round {roundNumber}
+            </span>
+            <span className="text-bwxt-text-secondary text-[13px]">
+              &mdash; {round.title}
+            </span>
+          </div>
+          <span className="text-bwxt-text-muted text-[13px]">
+            {round.decisions.length} Decisions
+          </span>
+        </div>
+      </div>
+
+      <main className="max-w-[880px] mx-auto px-6 py-8 space-y-8">
+        {/* ── Situation Briefing ──────────────────────────────────────── */}
+        <section aria-labelledby="briefing-heading">
           <h2
             id="briefing-heading"
-            className="text-brand-navy text-lg font-bold mb-3"
+            className="text-[18px] font-semibold text-bwxt-navy mb-3"
           >
             Situation Briefing
           </h2>
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="bg-white border border-bwxt-border rounded-xl shadow-card p-6">
             {round.briefingContent
               .split("\n")
               .filter(Boolean)
               .map((line, i) => (
                 <p
                   key={i}
-                  className="text-gray-700 text-sm leading-relaxed mb-2 last:mb-0"
+                  className="text-[15px] text-bwxt-text-primary leading-[1.65] mb-2 last:mb-0"
                 >
                   {line}
                 </p>
@@ -116,18 +107,18 @@ export default async function RoundPage({ params }: Props) {
           </div>
         </section>
 
-        {/* ── Event / trigger ─────────────────────────────────────────── */}
+        {/* ── Event / Situation Update ────────────────────────────────── */}
         {round.eventContent && (
-          <section aria-labelledby="event-heading" className="mb-8">
+          <section aria-labelledby="event-heading">
             <h2 id="event-heading" className="sr-only">
-              Triggering Event
+              Situation Update
             </h2>
-            <div className="border-l-4 border-brand-gold bg-white rounded-r-xl p-5">
+            <div className="border-l-4 border-bwxt-navy bg-bwxt-navy-light rounded-r-xl px-6 py-5">
               <div
-                className="text-xs font-semibold text-brand-gold uppercase tracking-wide mb-2"
+                className="text-[12px] font-semibold text-bwxt-navy uppercase tracking-[0.05em] mb-3"
                 aria-hidden="true"
               >
-                Executive Trigger
+                Situation Update
               </div>
               {round.eventContent
                 .split("\n")
@@ -135,7 +126,7 @@ export default async function RoundPage({ params }: Props) {
                 .map((line, i) => (
                   <p
                     key={i}
-                    className="text-brand-navy text-sm font-medium leading-relaxed"
+                    className="font-playfair italic text-[16px] text-bwxt-navy leading-relaxed"
                   >
                     {line}
                   </p>
@@ -144,11 +135,11 @@ export default async function RoundPage({ params }: Props) {
           </section>
         )}
 
-        {/* ── Interactive decisions ───────────────────────────────────── */}
+        {/* ── Your Decisions ──────────────────────────────────────────── */}
         <section aria-labelledby="decisions-heading">
           <h2
             id="decisions-heading"
-            className="text-brand-navy text-lg font-bold mb-6"
+            className="text-[18px] font-semibold text-bwxt-navy mb-6"
           >
             Your Decisions
           </h2>

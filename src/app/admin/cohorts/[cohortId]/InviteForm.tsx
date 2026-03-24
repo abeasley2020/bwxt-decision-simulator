@@ -79,7 +79,7 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
         type: "success",
         text: data.existed
           ? `${trimmed} has been added to this cohort as ${roleLabel.toLowerCase()}.`
-          : `Invitation recorded for ${trimmed}. They will be added to the cohort when they register.`,
+          : `${trimmed} was added as ${roleLabel.toLowerCase()}. Note: they will need a login account set up before they can access the simulator.`,
       });
       setEmail("");
       setOpen(false);
@@ -105,7 +105,7 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
             focus:outline-none focus:ring-2 focus:ring-brand-gold focus:ring-offset-1 rounded
           "
         >
-          + Invite {roleLabel}
+          + Add {roleLabel}
         </button>
       ) : (
         <form
@@ -147,7 +147,7 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
               disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap
             "
           >
-            {loading ? "Sending…" : "Send Invite"}
+            {loading ? "Adding…" : "Add to Cohort"}
           </button>
 
           <button

@@ -43,10 +43,10 @@ export default function ResourceAllocationDecision({
   }
 
   const totalStatusClass = isValid
-    ? "text-green-700"
+    ? "text-bwxt-success"
     : total > 100
-    ? "text-red-700 font-semibold"
-    : "text-amber-700";
+    ? "text-bwxt-danger font-semibold"
+    : "text-bwxt-warning";
 
   const totalStatusText = isValid
     ? "100% allocated — ready to submit"
@@ -68,17 +68,17 @@ export default function ResourceAllocationDecision({
           return (
             <div
               key={opt.key}
-              className="bg-white border border-gray-200 rounded-lg p-4"
+              className="bg-white border border-bwxt-border rounded-xl p-4"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <label
                     htmlFor={inputId}
-                    className="block font-semibold text-sm text-brand-navy leading-snug mb-0.5"
+                    className="block font-semibold text-[15px] text-bwxt-navy leading-snug mb-0.5"
                   >
                     {opt.label}
                   </label>
-                  <p className="text-xs text-gray-500 leading-relaxed">
+                  <p className="text-[13px] text-bwxt-text-secondary leading-relaxed">
                     {opt.description}
                   </p>
                 </div>
@@ -96,16 +96,16 @@ export default function ResourceAllocationDecision({
                       onChange={(e) => handleChange(opt.key, e.target.value)}
                       aria-label={`${opt.label}: percentage of budget`}
                       className="
-                        w-16 px-2 py-1.5 text-right text-sm font-semibold
-                        border border-gray-300 rounded-md text-brand-navy
-                        focus:outline-none focus:border-brand-blue focus:ring-2
-                        focus:ring-brand-blue/20
+                        w-16 px-2 py-1.5 text-right text-[15px] font-semibold
+                        border border-bwxt-border rounded-md text-bwxt-navy
+                        focus:outline-none focus:border-bwxt-crimson focus:ring-1
+                        focus:ring-bwxt-crimson
                       "
                     />
-                    <span className="text-sm text-gray-500 font-medium">%</span>
+                    <span className="text-[15px] text-bwxt-text-secondary font-medium">%</span>
                   </div>
                   <span
-                    className="text-xs text-gray-400 tabular-nums"
+                    className="text-[13px] text-bwxt-text-muted tabular-nums"
                     aria-live="polite"
                     aria-label={`${opt.label}: $${dollars}M`}
                   >
@@ -123,18 +123,18 @@ export default function ResourceAllocationDecision({
         id={totalId}
         aria-live="polite"
         aria-atomic="true"
-        className={`flex items-center justify-between px-4 py-3 rounded-lg border ${
+        className={`flex items-center justify-between px-4 py-3 rounded-xl border ${
           isValid
             ? "bg-green-50 border-green-200"
             : total > 100
-            ? "bg-red-50 border-red-200"
+            ? "bg-bwxt-crimson-light border-bwxt-crimson/20"
             : "bg-amber-50 border-amber-200"
         }`}
       >
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-[15px] font-medium text-bwxt-text-primary">
           Total allocated
         </span>
-        <span className={`text-sm font-bold tabular-nums ${totalStatusClass}`}>
+        <span className={`text-[15px] font-bold tabular-nums ${totalStatusClass}`}>
           {totalStatusText}
         </span>
       </div>
@@ -143,7 +143,7 @@ export default function ResourceAllocationDecision({
         <p
           id={errorId}
           role="alert"
-          className="mt-2 text-sm text-red-700 flex items-center gap-1"
+          className="mt-2 text-[14px] text-bwxt-danger flex items-center gap-1"
         >
           <span aria-hidden="true" className="font-bold">!</span>
           {error}

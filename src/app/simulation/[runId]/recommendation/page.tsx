@@ -20,6 +20,8 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import RecommendationForm from "@/components/recommendation/RecommendationForm";
+import SimulationNav from "@/components/SimulationNav";
+import PreviewBanner from "@/components/simulation/PreviewBanner";
 
 interface Props {
   params: { runId: string };
@@ -35,7 +37,7 @@ export default async function RecommendationPage({ params }: Props) {
 
   const { data: run } = await supabase
     .from("simulation_runs")
-    .select("id, status, current_round_number, user_id")
+    .select("id, status, current_round_number, user_id, is_preview")
     .eq("id", params.runId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -54,44 +56,41 @@ export default async function RecommendationPage({ params }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-brand-light">
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <header className="bg-brand-navy text-white">
-        <div className="max-w-3xl mx-auto px-6 py-5">
-          <div
-            className="text-brand-gold text-xs font-semibold tracking-widest uppercase mb-1"
-            aria-hidden="true"
-          >
-            Final Step
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Executive Recommendation
-          </h1>
-          <p className="text-white/50 text-sm mt-0.5">
-            Operation Iron Horizon &mdash; Your Strategic Position
-          </p>
-        </div>
-      </header>
+    <div className="min-h-screen bg-bwxt-bg">
+      <SimulationNav />
+      {run.is_preview && <PreviewBanner />}
 
-      <main className="max-w-3xl mx-auto px-6 py-8">
+      {/* Status bar */}
+      <div className="bg-bwxt-navy-light border-b border-bwxt-border">
+        <div className="max-w-[880px] mx-auto px-6 py-3 flex items-center gap-3">
+          <span className="bg-bwxt-crimson text-white text-[12px] font-semibold px-3 py-1 rounded-full">
+            Final Step
+          </span>
+          <span className="text-bwxt-text-secondary text-[13px]">
+            &mdash; Executive Recommendation
+          </span>
+        </div>
+      </div>
+
+      <main className="max-w-[880px] mx-auto px-6 py-8">
         {/* ── Context ─────────────────────────────────────────────────── */}
         <section aria-labelledby="context-heading" className="mb-8">
           <h2
             id="context-heading"
-            className="text-brand-navy text-lg font-bold mb-3"
+            className="text-[18px] font-semibold text-bwxt-navy mb-3"
           >
             Articulate Your Strategic Direction
           </h2>
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <p className="text-gray-700 text-sm leading-relaxed mb-3">
+          <div className="bg-white border border-bwxt-border rounded-xl shadow-card p-6">
+            <p className="text-[15px] text-bwxt-text-primary leading-[1.65] mb-3">
               You have completed 90 simulated days as Acting President of
               BWXT&apos;s largest operating division. Based on the decisions
               you made and their consequences, articulate your executive
               recommendation across five dimensions.
             </p>
-            <p className="text-gray-700 text-sm leading-relaxed">
+            <p className="text-[15px] text-bwxt-text-primary leading-[1.65]">
               These responses will be reviewed by faculty as part of your
-              leadership assessment. Answer thoughtfully — they reveal how you
+              leadership assessment. Answer thoughtfully &mdash; they reveal how you
               think, not just what you would do.
             </p>
           </div>
