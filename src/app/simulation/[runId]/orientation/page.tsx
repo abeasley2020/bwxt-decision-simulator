@@ -2,7 +2,7 @@
  * Orientation page — shown before Round 1.
  *
  * Displays:
- *  - Scenario purpose and context
+ *  - Scenario purpose and context (executive intelligence brief)
  *  - Participant role
  *  - The seven scoring (evaluation) dimensions
  *  - Initial KPI baseline values
@@ -65,7 +65,7 @@ export default async function OrientationPage({ params }: Props) {
     <div className="min-h-screen bg-bwxt-bg">
       {run.is_preview && <PreviewBanner />}
 
-      {/* Hero section — full bleed navy */}
+      {/* ── Top hero: simulation title + meta badges ───────────────────── */}
       <div className="bg-bwxt-navy">
         <div className="max-w-[880px] mx-auto px-6 py-16">
           <h1 className="font-playfair font-bold text-[44px] text-white leading-tight tracking-tight">
@@ -86,29 +86,196 @@ export default async function OrientationPage({ params }: Props) {
         </div>
       </div>
 
-      <main className="max-w-[880px] mx-auto px-6 py-10 space-y-10">
-        {/* ── Your Scenario ──────────────────────────────────────────────── */}
-        <section aria-labelledby="section-scenario">
-          <h2
-            id="section-scenario"
-            className="text-[18px] font-semibold text-bwxt-navy mb-4"
+      {/* ── Scenario Brief: role title + mandate ──────────────────────── */}
+      <div style={{ backgroundColor: "#17153A" }}>
+        <div
+          className="mx-auto px-6 text-center"
+          style={{ maxWidth: "880px", paddingTop: "64px", paddingBottom: "56px" }}
+        >
+          <p
+            style={{
+              fontFamily: "Inter, system-ui, sans-serif",
+              fontWeight: 600,
+              fontSize: "11px",
+              letterSpacing: "0.12em",
+              color: "#C93147",
+              textTransform: "uppercase",
+              marginBottom: "20px",
+            }}
           >
-            Your Scenario
+            Operation Iron Horizon
+          </p>
+          <h2
+            className="font-playfair font-bold text-white"
+            style={{ fontSize: "36px", lineHeight: 1.2 }}
+          >
+            Acting President, BWXT Nuclear Division
           </h2>
-          <div className="bg-white border border-bwxt-border rounded-xl shadow-card p-6">
-            {IRON_HORIZON_VERSION.introContent
-              .split("\n")
-              .filter(Boolean)
-              .map((line, i) => (
-                <p
-                  key={i}
-                  className="text-[15px] text-bwxt-text-primary leading-[1.65] mb-3 last:mb-0"
+          <div
+            aria-hidden="true"
+            style={{
+              width: "56px",
+              height: "3px",
+              backgroundColor: "#C93147",
+              margin: "20px auto",
+            }}
+          />
+          <p
+            style={{
+              fontFamily: "Inter, system-ui, sans-serif",
+              fontWeight: 400,
+              fontSize: "16px",
+              color: "rgba(255,255,255,0.65)",
+            }}
+          >
+            90-Day Mandate.&nbsp; Three Rounds.&nbsp; Real Consequences.
+          </p>
+        </div>
+      </div>
+
+      {/* ── Situation brief card + four challenge cards ────────────────── */}
+      <div className="bg-bwxt-bg">
+        <div className="mx-auto px-6 py-12" style={{ maxWidth: "760px" }}>
+          <div
+            style={{
+              backgroundColor: "#fff",
+              border: "1px solid #E0DFF0",
+              borderRadius: "12px",
+              padding: "40px",
+            }}
+          >
+            {/* Section label */}
+            <p
+              style={{
+                fontFamily: "Inter, system-ui, sans-serif",
+                fontWeight: 600,
+                fontSize: "11px",
+                letterSpacing: "0.10em",
+                color: "#C93147",
+                textTransform: "uppercase",
+                marginBottom: "20px",
+              }}
+            >
+              Situation Brief
+            </p>
+
+            {/* Opening paragraphs — Playfair italic */}
+            <p
+              className="font-playfair"
+              style={{
+                fontStyle: "italic",
+                fontSize: "18px",
+                color: "#17153A",
+                lineHeight: 1.7,
+                marginBottom: "16px",
+              }}
+            >
+              You have just been named Acting President of BWXT&apos;s largest
+              operating division. The division generates $2.4B in annual revenue
+              across defense manufacturing, commercial nuclear services, and
+              emerging government technology contracts.
+            </p>
+            <p
+              className="font-playfair"
+              style={{
+                fontStyle: "italic",
+                fontSize: "18px",
+                color: "#17153A",
+                lineHeight: 1.7,
+              }}
+            >
+              You have 90 days to demonstrate executive leadership before the
+              Board confirms your appointment permanently.
+            </p>
+
+            {/* Divider */}
+            <div
+              aria-hidden="true"
+              style={{
+                height: "1px",
+                backgroundColor: "#E0DFF0",
+                margin: "28px 0",
+              }}
+            />
+
+            {/* Four challenge cards */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[
+                {
+                  category: "Contract Margin",
+                  title: "Defense Margin Pressure",
+                  body: "A competitor's recent bid has placed BWXT's core defense contracts under significant margin pressure.",
+                },
+                {
+                  category: "Compliance Risk",
+                  title: "Nuclear Safety Audit",
+                  body: "A mandatory safety audit is scheduled in 60 days. Potential compliance exposure has not yet been resolved.",
+                },
+                {
+                  category: "Execution Lag",
+                  title: "Digital Transformation",
+                  body: "The division's digital transformation program is running 18 months behind its original delivery schedule.",
+                },
+                {
+                  category: "Talent Retention",
+                  title: "Direct Report Flight Risk",
+                  body: "Two of your six direct reports are considered flight risks and may require immediate attention.",
+                },
+              ].map((card) => (
+                <div
+                  key={card.category}
+                  style={{
+                    backgroundColor: "#FAFAFA",
+                    border: "1px solid #E0DFF0",
+                    borderLeft: "3px solid #C93147",
+                    borderRadius: "8px",
+                    padding: "18px 20px",
+                  }}
                 >
-                  {line}
-                </p>
+                  <p
+                    style={{
+                      fontFamily: "Inter, system-ui, sans-serif",
+                      fontWeight: 600,
+                      fontSize: "10px",
+                      letterSpacing: "0.08em",
+                      color: "#C93147",
+                      textTransform: "uppercase",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    {card.category}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "Inter, system-ui, sans-serif",
+                      fontWeight: 600,
+                      fontSize: "15px",
+                      color: "#17153A",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    {card.title}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "Inter, system-ui, sans-serif",
+                      fontWeight: 400,
+                      fontSize: "13px",
+                      color: "#6B7280",
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {card.body}
+                  </p>
+                </div>
               ))}
+            </div>
           </div>
-        </section>
+        </div>
+      </div>
+
+      {/* ── Remaining orientation content ─────────────────────────────── */}
+      <main className="max-w-[880px] mx-auto px-6 pb-10 space-y-10">
 
         {/* ── Before You Begin ───────────────────────────────────────────── */}
         <section aria-labelledby="section-logistics">
