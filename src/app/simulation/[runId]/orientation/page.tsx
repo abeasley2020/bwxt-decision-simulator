@@ -163,7 +163,6 @@ export default async function OrientationPage({ params }: Props) {
             <p
               className="font-playfair"
               style={{
-                fontStyle: "italic",
                 fontSize: "18px",
                 color: "#17153A",
                 lineHeight: 1.7,
@@ -178,7 +177,6 @@ export default async function OrientationPage({ params }: Props) {
             <p
               className="font-playfair"
               style={{
-                fontStyle: "italic",
                 fontSize: "18px",
                 color: "#17153A",
                 lineHeight: 1.7,
