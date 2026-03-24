@@ -1,44 +1,49 @@
 /**
- * Admin layout.
- * Provides the header banner and navigation shared across all admin routes.
- * Individual pages supply their own <main> and heading hierarchy.
+ * Admin layout — server component.
+ *
+ * Responsibilities:
+ *  - Authenticate the session (redirect /login if unauthenticated)
+ *  - Role guard: non-admin users are redirected to their home route
+ *  - Resolve display name from public.users and pass to AdminNav
+ *  - Render AdminNav + page content
  */
 
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import AdminNav from "./AdminNav";
-import SignOutButton from "@/components/SignOutButton";
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Resolve public.users by email (handles ID mismatch for older accounts)
+  const { data: publicUser } = await supabase
+    .from("users")
+    .select("id, role, first_name, last_name")
+    .eq("email", user.email!)
+    .maybeSingle();
+
+  if (!publicUser) redirect("/login");
+
+  // Role guard
+  if (publicUser.role === "faculty") redirect("/faculty/dashboard");
+  if (publicUser.role === "participant") redirect("/simulation");
+
+  const firstName = publicUser.first_name ?? "";
+  const lastName = publicUser.last_name ?? "";
+  const userName = [firstName, lastName].filter(Boolean).join(" ") || user.email!;
+
   return (
-    <div className="min-h-screen bg-brand-light">
-      {/* ── Site header ─────────────────────────────────────────────────── */}
-      <header className="bg-brand-navy text-white">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-brand-gold text-xs font-semibold uppercase tracking-wider">
-              Admin
-            </span>
-            <span className="text-white/20" aria-hidden="true">
-              |
-            </span>
-            <span className="text-white/70 text-sm font-medium">
-              Operation Iron Horizon
-            </span>
-          </div>
-          <SignOutButton />
-        </div>
-
-        {/* ── Navigation ────────────────────────────────────────────────── */}
-        <div className="border-t border-white/10">
-          <div className="max-w-6xl mx-auto px-6">
-            <AdminNav />
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen" style={{ backgroundColor: "#F4F4F7" }}>
+      <AdminNav userName={userName} />
       {children}
     </div>
   );
