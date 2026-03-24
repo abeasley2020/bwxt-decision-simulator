@@ -58,7 +58,7 @@ export default async function ParticipantDashboardPage({ params }: Props) {
   const { data: run } = await supabase
     .from("simulation_runs")
     .select(
-      "id, status, user_id, scenario_version_id, final_profile_id, completed_at, is_preview"
+      "id, status, user_id, current_round_number, scenario_version_id, final_profile_id, completed_at, is_preview"
     )
     .eq("id", params.runId)
     .eq("user_id", user.id)
