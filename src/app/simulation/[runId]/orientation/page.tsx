@@ -37,11 +37,18 @@ export default async function OrientationPage({ params }: Props) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: publicUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", user.email!)
+    .maybeSingle();
+  const userId = publicUser?.id ?? user.id;
+
   const { data: run } = await supabase
     .from("simulation_runs")
     .select("id, status, current_round_number, user_id, is_preview")
     .eq("id", params.runId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (!run) notFound();

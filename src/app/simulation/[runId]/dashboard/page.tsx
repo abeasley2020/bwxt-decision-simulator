@@ -55,13 +55,20 @@ export default async function ParticipantDashboardPage({ params }: Props) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: publicUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", user.email!)
+    .maybeSingle();
+  const userId = publicUser?.id ?? user.id;
+
   const { data: run } = await supabase
     .from("simulation_runs")
     .select(
       "id, status, user_id, current_round_number, scenario_version_id, final_profile_id, completed_at, is_preview"
     )
     .eq("id", params.runId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (!run) notFound();

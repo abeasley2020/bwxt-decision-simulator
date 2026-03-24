@@ -37,6 +37,13 @@ export default async function ConsequencePage({ params }: Props) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: publicUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", user.email!)
+    .maybeSingle();
+  const userId = publicUser?.id ?? user.id;
+
   const roundNumber = parseInt(params.roundNumber, 10);
   if (isNaN(roundNumber) || roundNumber < 1 || roundNumber > 3) notFound();
 
@@ -44,7 +51,7 @@ export default async function ConsequencePage({ params }: Props) {
     .from("simulation_runs")
     .select("id, status, current_round_number, user_id, scenario_version_id, is_preview")
     .eq("id", params.runId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (!run) notFound();
