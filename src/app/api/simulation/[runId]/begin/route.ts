@@ -24,12 +24,21 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Resolve public.users.id by email — may differ from auth.users.id
+  // for accounts provisioned before the invite-flow fix.
+  const { data: publicUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", user.email!)
+    .maybeSingle();
+  const userId = publicUser?.id ?? user.id;
+
   // Verify ownership
   const { data: run } = await supabase
     .from("simulation_runs")
     .select("id, status, user_id, scenario_version_id, cohort_id")
     .eq("id", params.runId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (!run) return NextResponse.json({ error: "Not found" }, { status: 404 });

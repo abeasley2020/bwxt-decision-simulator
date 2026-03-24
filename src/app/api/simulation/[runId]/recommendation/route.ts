@@ -47,12 +47,19 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { data: publicUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", user.email!)
+    .maybeSingle();
+  const userId = publicUser?.id ?? user.id;
+
   // Verify run ownership and eligibility
   const { data: run } = await supabase
     .from("simulation_runs")
     .select("id, status, current_round_number, user_id")
     .eq("id", params.runId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (!run) {

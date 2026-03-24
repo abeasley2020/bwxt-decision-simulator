@@ -48,6 +48,13 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { data: publicUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", user.email!)
+    .maybeSingle();
+  const userId = publicUser?.id ?? user.id;
+
   const roundNumber = parseInt(params.roundNumber, 10);
   if (isNaN(roundNumber) || roundNumber < 1 || roundNumber > 3) {
     return NextResponse.json({ error: "Invalid round number" }, { status: 400 });
@@ -58,7 +65,7 @@ export async function POST(
     .from("simulation_runs")
     .select("id, status, current_round_number, user_id, scenario_version_id")
     .eq("id", params.runId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (!run) {
