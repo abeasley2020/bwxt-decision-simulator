@@ -41,9 +41,10 @@ export default async function SimulationPage() {
   const userId   = publicUser?.id   ?? user.id;
   const userRole = publicUser?.role ?? null;
 
+  if (userRole === "admin")   redirect("/admin/dashboard");
   if (userRole === "faculty") redirect("/faculty/dashboard");
 
-  const isAdmin = userRole === "admin";
+  const isAdmin = false;
 
   // ── Find existing simulation run ────────────────────────────────────────────
 

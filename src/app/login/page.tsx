@@ -18,7 +18,7 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError("Invalid email or password.");
@@ -26,7 +26,23 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/simulation");
+    // Look up role from public.users by email (source of truth).
+    // Email lookup is used instead of ID to handle any case where
+    // auth.users.id and public.users.id differ.
+    const { data: userData } = await supabase
+      .from("users")
+      .select("role")
+      .eq("email", authData.user.email!)
+      .single();
+
+    const role = userData?.role;
+    if (role === "admin") {
+      router.push("/admin/dashboard");
+    } else if (role === "faculty") {
+      router.push("/faculty/dashboard");
+    } else {
+      router.push("/simulation");
+    }
   }
 
   return (

@@ -137,10 +137,13 @@ export default async function CohortManagePage({
     const u = m.users[0] ?? null;
     const run = runsByUser.get(m.user_id);
     const simStatus: string = run?.status ?? "not_started";
-    const fullName = u ? `${u.first_name} ${u.last_name}`.trim() : "";
+    // Treat first_name as meaningful only if it isn't just the email prefix
+    const emailPrefix = u?.email?.split("@")[0] ?? "";
+    const hasRealName = u?.first_name && u.first_name !== emailPrefix;
+    const fullName = hasRealName ? `${u!.first_name} ${u!.last_name}`.trim() : "";
     return {
       userId: m.user_id,
-      name: fullName || u?.email || "Unknown",
+      name: fullName || u?.email || "—",
       email: u?.email ?? "—",
       simStatus,
       completedAt: run?.completed_at ?? null,
@@ -150,10 +153,12 @@ export default async function CohortManagePage({
 
   const faculty = (facultyMembershipsRes.data as MemberRow[] ?? []).map((m) => {
     const u = m.users[0] ?? null;
-    const fullName = u ? `${u.first_name} ${u.last_name}`.trim() : "";
+    const emailPrefix = u?.email?.split("@")[0] ?? "";
+    const hasRealName = u?.first_name && u.first_name !== emailPrefix;
+    const fullName = hasRealName ? `${u!.first_name} ${u!.last_name}`.trim() : "";
     return {
       userId: m.user_id,
-      name: fullName || u?.email || "Unknown",
+      name: fullName || u?.email || "—",
       email: u?.email ?? "—",
       invitationStatus: m.invitation_status,
       invitedAt: m.invited_at,

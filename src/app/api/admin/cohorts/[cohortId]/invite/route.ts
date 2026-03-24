@@ -1,76 +1,39 @@
 /**
  * POST /api/admin/cohorts/[cohortId]/invite
  *
- * Provisions a user and adds them to a cohort in one operation:
- *   1. Look up or create an auth.users account (via Supabase Admin API)
- *   2. Look up or create a public.users row with id = auth.users.id
- *   3. Create cohort_memberships record
- *   4. Create simulation_run record (participants only)
- *   5. Return temp password for new accounts (admin shares with the user)
+ * Provisions a user and adds them to a cohort in one operation.
+ * All database writes use the service-role client to bypass RLS.
  *
- * For existing users (email found in public.users):
- *   - Checks they are not already a member (409 if so)
- *   - Adds cohort_memberships with invitation_status = 'accepted'
- *   - Creates a simulation_run if one doesn't already exist
- *   - Does NOT change their existing password
- *   - Returns { ok: true, existed: true }
+ * Steps:
+ *   1. Find or create auth.users account
+ *   2. Find or create public.users record
+ *   3. Create cohort_memberships (guard against duplicates)
+ *   4. Create simulation_run for participants
+ *   5. Return success
  *
- * For new users (email not found):
- *   - Creates auth.users via admin API (email_confirm = true, temp password)
- *   - Creates public.users with id = auth.users.id (IDs always match)
- *   - Creates cohort_memberships with invitation_status = 'accepted'
- *   - Creates simulation_run for participants
- *   - Returns { ok: true, existed: false, tempPassword: string }
- *
- * Request body: { email: string, role: "participant" | "faculty" }
- * Auth: admin role required.
- *
- * Requires SUPABASE_SERVICE_ROLE_KEY in environment (server-side only).
+ * Requires SUPABASE_SERVICE_ROLE_KEY in environment.
  */
 
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient as createServerClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 
-// ── Temp password generator ────────────────────────────────────────────────────
-// Produces a 12-character password satisfying uppercase + lowercase + digit +
-// special requirements. Characters that look alike (0/O, 1/l/I) are excluded.
-
-function generateTempPassword(): string {
-  const upper   = "ABCDEFGHJKMNPQRSTUVWXYZ";
-  const lower   = "abcdefghjkmnpqrstuvwxyz";
-  const digits  = "23456789";
-  const special = "!@#$";
-  const pool    = upper + lower + digits;
-
-  // Guarantee at least one of each required category
-  const seeded = [
-    upper  [Math.floor(Math.random() * upper.length)],
-    lower  [Math.floor(Math.random() * lower.length)],
-    digits [Math.floor(Math.random() * digits.length)],
-    special[Math.floor(Math.random() * special.length)],
-  ];
-  const filler = Array.from({ length: 8 }, () =>
-    pool[Math.floor(Math.random() * pool.length)]
-  );
-
-  return [...seeded, ...filler]
-    .sort(() => Math.random() - 0.5)
-    .join("");
-}
-
-// ─── Route handler ─────────────────────────────────────────────────────────────
+// Service-role client — bypasses RLS for all DB writes.
+// Only used server-side; never exposed to the browser.
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+);
 
 export async function POST(
   request: Request,
   { params }: { params: { cohortId: string } }
 ) {
-  const supabase      = createClient();
-  const adminSupabase = createAdminClient();
-  const now           = new Date().toISOString();
+  const cohortId = params.cohortId;
 
-  // ── Admin auth check ────────────────────────────────────────────────────────
-
+  // ── Verify caller is an authenticated admin ──────────────────────────────────
+  const supabase = createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -79,18 +42,17 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: adminRow } = await supabase
+  const { data: callerRow } = await supabaseAdmin
     .from("users")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (!adminRow || adminRow.role !== "admin") {
+  if (!callerRow || callerRow.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // ── Parse body ──────────────────────────────────────────────────────────────
-
+  // ── Parse request body ───────────────────────────────────────────────────────
   let body: { email?: string; role?: string };
   try {
     body = await request.json();
@@ -99,7 +61,7 @@ export async function POST(
   }
 
   const email = body.email?.toString().trim().toLowerCase();
-  const role  = body.role;
+  const role = body.role;
 
   if (!email || !["participant", "faculty"].includes(role ?? "")) {
     return NextResponse.json(
@@ -108,138 +70,146 @@ export async function POST(
     );
   }
 
-  // ── Check cohort exists (+ grab scenario_version_id for run creation) ───────
+  // ── STEP 1 — Find or create auth user ───────────────────────────────────────
+  console.log(`[invite] Step 1: looking up auth user for ${email}`);
 
-  const { data: cohort } = await supabase
-    .from("cohorts")
-    .select("id, scenario_version_id")
-    .eq("id", params.cohortId)
-    .maybeSingle();
+  const {
+    data: { users: authUsers },
+  } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
 
-  if (!cohort) {
-    return NextResponse.json({ error: "Cohort not found." }, { status: 404 });
+  let authUser = authUsers.find((u) => u.email === email) ?? null;
+  let tempPassword: string | null = null;
+
+  if (!authUser) {
+    console.log(`[invite] Step 1: no auth account found — creating`);
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: "Welcome2024!",
+      email_confirm: true,
+    });
+    if (error) {
+      console.error(`[invite] Step 1 FAILED: ${error.message}`);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    authUser = data.user;
+    tempPassword = "Welcome2024!";
+    console.log(`[invite] Step 1: created auth user ${authUser.id}`);
+  } else {
+    console.log(`[invite] Step 1: found existing auth user ${authUser.id}`);
   }
 
-  // ── Resolve or create the user ──────────────────────────────────────────────
-  // public.users is our application source of truth for user_id.
-  // If a row already exists the user is provisioned; otherwise we create
-  // both an auth account and a public.users row with the same UUID.
+  const authUserId = authUser.id;
 
-  const { data: existingPublicUser } = await supabase
+  // ── STEP 2 — Find or create public.users record ──────────────────────────────
+  console.log(`[invite] Step 2: looking up public.users for ${email}`);
+
+  const { data: publicUser } = await supabaseAdmin
     .from("users")
     .select("id")
     .eq("email", email)
     .maybeSingle();
 
-  let userId: string;
-  let tempPassword: string | null = null;
-
-  if (existingPublicUser) {
-    // ── Existing user — use their current ID ──────────────────────────────
-    userId = existingPublicUser.id;
-  } else {
-    // ── New user — create auth account first so IDs always match ─────────
-    tempPassword = generateTempPassword();
-
-    const { data: authData, error: authError } =
-      await adminSupabase.auth.admin.createUser({
-        email,
-        password: tempPassword,
-        email_confirm: true, // bypass email verification for admin-provisioned accounts
-      });
-
-    if (authError) {
-      return NextResponse.json(
-        { error: `Failed to create auth account: ${authError.message}` },
-        { status: 500 }
-      );
-    }
-
-    userId = authData.user.id;
-
-    // Create public.users with the same UUID as auth.users so every
-    // downstream query using auth session ID finds the correct row.
-    const { error: publicUserError } = await supabase.from("users").insert({
-      id:         userId,
+  if (!publicUser) {
+    console.log(`[invite] Step 2: no public.users record — creating`);
+    const { error } = await supabaseAdmin.from("users").insert({
+      id: authUserId,
       email,
-      first_name: "",
-      last_name:  "",
-      role:       role as string,
+      first_name: email.split("@")[0],
+      last_name: "",
+      role: role as string,
     });
-
-    if (publicUserError) {
-      // Best-effort cleanup: delete the auth account we just created so the
-      // admin can retry without a dangling auth record.
-      await adminSupabase.auth.admin.deleteUser(userId);
-      return NextResponse.json(
-        { error: publicUserError.message },
-        { status: 500 }
-      );
+    if (error) {
+      console.error(`[invite] Step 2 FAILED: ${error.message}`);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
+    console.log(`[invite] Step 2: created public.users record`);
+  } else {
+    console.log(`[invite] Step 2: found existing public.users record ${publicUser.id}`);
   }
 
-  // ── Guard: check for existing membership ───────────────────────────────────
+  const userId = publicUser?.id ?? authUserId;
 
-  const { data: existingMembership } = await supabase
+  // ── STEP 3 — Check for existing membership, then insert ─────────────────────
+  console.log(`[invite] Step 3: checking cohort membership`);
+
+  const { data: existingMembership } = await supabaseAdmin
     .from("cohort_memberships")
     .select("id")
     .eq("user_id", userId)
-    .eq("cohort_id", params.cohortId)
+    .eq("cohort_id", cohortId)
     .maybeSingle();
 
   if (existingMembership) {
+    console.log(`[invite] Step 3: user already a member`);
     return NextResponse.json(
       { error: "This person is already a member of this cohort." },
       { status: 409 }
     );
   }
 
-  // ── Create cohort_memberships ───────────────────────────────────────────────
-
-  const { error: membershipError } = await supabase
+  const now = new Date().toISOString();
+  const { error: memberError } = await supabaseAdmin
     .from("cohort_memberships")
     .insert({
-      user_id:           userId,
-      cohort_id:         params.cohortId,
-      cohort_role:       role,
+      user_id: userId,
+      cohort_id: cohortId,
+      cohort_role: role,
       invitation_status: "accepted",
-      invited_at:        now,
-      assigned_at:       now,
+      invited_at: now,
+      assigned_at: now,
     });
 
-  if (membershipError) {
-    return NextResponse.json({ error: membershipError.message }, { status: 500 });
+  if (memberError) {
+    console.error(`[invite] Step 3 FAILED: ${memberError.message}`);
+    return NextResponse.json({ error: memberError.message }, { status: 500 });
   }
+  console.log(`[invite] Step 3: created cohort membership`);
 
-  // ── Create simulation_run for participants ──────────────────────────────────
-  // Only participants take the simulation; faculty do not get a run.
-  // Skip if a run for this user+cohort already exists (idempotent).
+  // ── STEP 4 — Create simulation run for participants ──────────────────────────
+  if (role === "participant") {
+    console.log(`[invite] Step 4: checking simulation run`);
 
-  if (role === "participant" && cohort.scenario_version_id) {
-    const { data: existingRun } = await supabase
+    const { data: existingRun } = await supabaseAdmin
       .from("simulation_runs")
       .select("id")
       .eq("user_id", userId)
-      .eq("cohort_id", params.cohortId)
+      .eq("cohort_id", cohortId)
       .maybeSingle();
 
     if (!existingRun) {
-      await supabase.from("simulation_runs").insert({
-        user_id:             userId,
-        cohort_id:           params.cohortId,
-        scenario_version_id: cohort.scenario_version_id,
-        status:              "not_started",
-        current_round_number: 1,
-        is_preview:          false,
-      });
+      const { data: cohort } = await supabaseAdmin
+        .from("cohorts")
+        .select("scenario_version_id")
+        .eq("id", cohortId)
+        .maybeSingle();
+
+      if (cohort?.scenario_version_id) {
+        const { error: runError } = await supabaseAdmin
+          .from("simulation_runs")
+          .insert({
+            user_id: userId,
+            cohort_id: cohortId,
+            scenario_version_id: cohort.scenario_version_id,
+            status: "not_started",
+            current_round_number: 1,
+            is_preview: false,
+          });
+        if (runError) {
+          console.error(`[invite] Step 4 FAILED: ${runError.message}`);
+          return NextResponse.json({ error: runError.message }, { status: 500 });
+        }
+        console.log(`[invite] Step 4: created simulation run`);
+      }
+    } else {
+      console.log(`[invite] Step 4: simulation run already exists`);
     }
   }
 
-  // ── Respond ─────────────────────────────────────────────────────────────────
-
+  // ── STEP 5 — Return success ──────────────────────────────────────────────────
+  console.log(`[invite] Step 5: success for ${email}`);
   return NextResponse.json({
-    ok:      true,
-    existed: !!existingPublicUser,
+    ok: true,
+    existed: !!publicUser,
     ...(tempPassword ? { tempPassword } : {}),
   });
 }
