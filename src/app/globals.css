@@ -27,3 +27,84 @@
     line-height: 1.65;
   }
 }
+
+/* ── Print styles ─────────────────────────────────────────────────────────
+   Active when the user invokes the browser's print / save-as-PDF dialog
+   from the report routes (/simulation/[runId]/report and the faculty
+   /report variant). Goals:
+    - Drop site chrome (nav, sign-out, surrounding banners)
+    - Force solid background colors (navy header, crimson rule) to render
+    - Lay out report sections without awkward page splits
+   The `.no-print` utility is honored everywhere in the app.
+*/
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 0.5in;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    font-size: 12px;
+  }
+
+  /* Hide global navigation, action buttons, and any opt-out element */
+  nav,
+  header.bg-bwxt-navy:not(.report-cover),
+  .no-print {
+    display: none !important;
+  }
+
+  /* The report itself — full bleed, no shadows */
+  .report-root {
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Force background colors and accents to render in print output.
+     Browsers strip backgrounds by default unless we opt in. */
+  .report-root,
+  .report-root * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Cover header keeps the navy block and crimson accent */
+  .report-cover {
+    background-color: var(--bwxt-navy) !important;
+    color: #ffffff !important;
+  }
+
+  /* Avoid orphan/widow headings */
+  .report-section h2,
+  .report-section h3,
+  .report-section h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Sections that benefit from starting fresh on a page when they would
+     otherwise be split awkwardly. Browsers honor this as a "soft" hint. */
+  .report-section-break {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  /* Cards and table rows shouldn't be split mid-content */
+  table,
+  tr,
+  .report-section ul,
+  .report-section dl > div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Links — no underlines, keep ink minimal */
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}
+

@@ -7,6 +7,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 function statusBadgeStyle(status: string): React.CSSProperties {
   if (status === "completed")
@@ -124,7 +125,7 @@ export default async function AdminParticipantsPage() {
             <caption className="sr-only">All participants with cohort and simulation status</caption>
             <thead>
               <tr style={{ backgroundColor: "#FAFAFA", borderBottom: "1px solid #E0DFF0" }}>
-                {["Name", "Email", "Cohort", "Invite Status", "Simulation"].map((col) => (
+                {["Name", "Email", "Cohort", "Invite Status", "Simulation", "Report"].map((col) => (
                   <th
                     key={col}
                     scope="col"
@@ -213,6 +214,28 @@ export default async function AdminParticipantsPage() {
                       >
                         {statusLabel(simStatus)}
                       </span>
+                    </td>
+                    <td style={{ padding: "14px 20px" }}>
+                      {simStatus === "completed" && u ? (
+                        <Link
+                          href={`/admin/participants/${u.id}/report`}
+                          style={{
+                            color: "#17153A",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            textDecoration: "none",
+                            borderBottom: "1px solid transparent",
+                          }}
+                          className="hover:border-b hover:border-bwxt-navy focus:outline-none focus:ring-2 focus:ring-bwxt-navy focus:ring-offset-1 rounded"
+                          aria-label={`View report for ${fullName}`}
+                        >
+                          View report →
+                        </Link>
+                      ) : (
+                        <span style={{ color: "#9CA3AF", fontSize: "13px" }}>
+                          —
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );
