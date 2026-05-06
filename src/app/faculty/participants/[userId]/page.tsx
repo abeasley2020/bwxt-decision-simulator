@@ -450,14 +450,44 @@ export default async function ParticipantDetailPage({ params }: Props) {
             </p>
           )}
         </div>
-        <span
-          className={`
-            text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide mt-1
-            ${statusClass[run.status] ?? "bg-gray-100 text-gray-600"}
-          `}
-        >
-          {statusLabel[run.status] ?? run.status}
-        </span>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span
+            className={`
+              text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide
+              ${statusClass[run.status] ?? "bg-gray-100 text-gray-600"}
+            `}
+          >
+            {statusLabel[run.status] ?? run.status}
+          </span>
+          {run.status === "completed" && (
+            <Link
+              href={`/faculty/participants/${params.userId}/report`}
+              className="
+                inline-flex items-center gap-2 text-[13px] font-semibold
+                bg-brand-navy text-white px-3.5 py-1.5 rounded-lg
+                hover:bg-bwxt-navy-dark transition-colors duration-150
+                focus:outline-none focus:ring-2 focus:ring-brand-navy focus:ring-offset-2
+              "
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4 4V1h8v3M4 12H2V6h12v6h-2M4 9h8v6H4V9z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              View Report
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* ── Leadership Profile ───────────────────────────────────────────── */}

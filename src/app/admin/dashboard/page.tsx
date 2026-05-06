@@ -15,6 +15,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,58 @@ export default async function AdminDashboardPage() {
       completionCounts[r.cohort_id] =
         (completionCounts[r.cohort_id] ?? 0) + 1;
     }
+  }
+
+  // ── Recent reports (admin client — RLS hides other users on the
+  // user-scoped client) ─────────────────────────────────────────────────────
+
+  type RecentReport = {
+    userId: string;
+    fullName: string;
+    email: string;
+    cohortName: string | null;
+    completedAt: string | null;
+  };
+
+  let recentReports: RecentReport[] = [];
+
+  if (cohortIds.length > 0) {
+    const adminSupabase = createAdminClient();
+    const { data: recentRuns } = await adminSupabase
+      .from("simulation_runs")
+      .select(
+        "user_id, completed_at, users(first_name, last_name, email), cohorts(name)"
+      )
+      .eq("status", "completed")
+      .eq("is_preview", false)
+      .order("completed_at", { ascending: false })
+      .limit(5);
+
+    type RecentRow = {
+      user_id: string;
+      completed_at: string | null;
+      users:
+        | { first_name: string | null; last_name: string | null; email: string }
+        | Array<{ first_name: string | null; last_name: string | null; email: string }>
+        | null;
+      cohorts: { name: string } | Array<{ name: string }> | null;
+    };
+
+    recentReports = ((recentRuns ?? []) as RecentRow[]).map((r) => {
+      const u = Array.isArray(r.users) ? r.users[0] : r.users;
+      const c = Array.isArray(r.cohorts) ? r.cohorts[0] : r.cohorts;
+      const fullName =
+        [u?.first_name, u?.last_name].filter(Boolean).join(" ") ||
+        u?.email ||
+        "Unknown";
+      return {
+        userId: r.user_id,
+        fullName,
+        email: u?.email ?? "—",
+        cohortName: c?.name ?? null,
+        completedAt: r.completed_at,
+      };
+    });
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -235,6 +288,71 @@ export default async function AdminDashboardPage() {
           </table>
         </div>
       )}
+
+      {/* ── Recent Reports ──────────────────────────────────────────────── */}
+      <section aria-labelledby="recent-reports-heading" className="mt-12">
+        <div className="flex items-center justify-between mb-4">
+          <h2
+            id="recent-reports-heading"
+            className="text-lg font-bold text-brand-navy"
+          >
+            Recent Reports
+          </h2>
+          <Link
+            href="/admin/participants"
+            className="
+              text-xs text-brand-blue font-medium hover:underline
+              focus:outline-none focus:ring-2 focus:ring-brand-gold focus:ring-offset-1 rounded
+            "
+          >
+            All participants →
+          </Link>
+        </div>
+
+        {recentReports.length === 0 ? (
+          <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+            <p className="text-gray-400 text-sm">
+              No completed reports yet. Reports appear here once participants
+              finish their simulation and submit the executive recommendation.
+            </p>
+          </div>
+        ) : (
+          <ul
+            className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100"
+            aria-label="Most recently completed reports"
+          >
+            {recentReports.map((r) => (
+              <li
+                key={`${r.userId}-${r.completedAt ?? ""}`}
+                className="flex items-center gap-4 px-5 py-4 flex-wrap"
+              >
+                <div className="flex-1 min-w-[200px]">
+                  <div className="text-sm font-semibold text-brand-navy">
+                    {r.fullName}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {r.email}
+                    {r.cohortName ? ` · ${r.cohortName}` : ""}
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400 tabular-nums whitespace-nowrap">
+                  {formatDate(r.completedAt)}
+                </div>
+                <Link
+                  href={`/admin/participants/${r.userId}/report`}
+                  className="
+                    text-xs font-semibold text-brand-navy hover:underline whitespace-nowrap
+                    focus:outline-none focus:ring-2 focus:ring-brand-gold focus:ring-offset-1 rounded
+                  "
+                  aria-label={`View report for ${r.fullName}`}
+                >
+                  View report →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }

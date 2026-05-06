@@ -16,6 +16,7 @@
  */
 
 import { redirect, notFound } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
@@ -277,23 +278,22 @@ export default async function CompletePage({ params }: Props) {
           </ul>
         </section>
 
-        {/* ── Download Report (placeholder) ──────────────────────────── */}
+        {/* ── Download Report ────────────────────────────────────────── */}
         <div className="border-t border-bwxt-border pt-6">
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
+          <Link
+            href={`/simulation/${run.id}/report`}
             className="
-              bg-bwxt-border/40 text-bwxt-text-muted cursor-not-allowed
-              border border-bwxt-border rounded-[14px] py-[14px] w-full
-              font-semibold text-[15px]
+              block w-full max-w-[440px] mx-auto py-[14px] text-center
+              bg-bwxt-navy text-white font-semibold text-[15px] rounded-[14px]
+              hover:bg-bwxt-navy-dark transition-colors duration-150
+              focus:outline-none focus:ring-2 focus:ring-bwxt-navy focus:ring-offset-2
             "
           >
-            Download My Report
-          </button>
+            View &amp; Download My Report
+          </Link>
           <p className="mt-2 text-center text-[13px] text-bwxt-text-muted">
-            Report generation coming soon. Your faculty facilitator will
-            provide a full debrief.
+            Opens a printable report you can save as a PDF from your
+            browser&apos;s print dialog.
           </p>
         </div>
       </main>

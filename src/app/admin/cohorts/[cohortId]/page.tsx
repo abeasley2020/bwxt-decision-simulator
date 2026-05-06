@@ -423,11 +423,26 @@ export default async function CohortManagePage({
                           : "—"}
                       </td>
                       <td className="px-5 py-3 text-right">
-                        <RemoveMemberButton
-                          cohortId={cohort.id}
-                          userId={p.userId}
-                          memberName={p.name}
-                        />
+                        <div className="flex items-center justify-end gap-3">
+                          {p.simStatus === "completed" && (
+                            <Link
+                              href={`/admin/participants/${p.userId}/report`}
+                              className="
+                                text-xs font-semibold text-brand-navy
+                                hover:underline whitespace-nowrap
+                                focus:outline-none focus:ring-2 focus:ring-brand-gold focus:ring-offset-1 rounded
+                              "
+                              aria-label={`View report for ${p.name}`}
+                            >
+                              View report →
+                            </Link>
+                          )}
+                          <RemoveMemberButton
+                            cohortId={cohort.id}
+                            userId={p.userId}
+                            memberName={p.name}
+                          />
+                        </div>
                       </td>
                     </tr>
                   ))}
