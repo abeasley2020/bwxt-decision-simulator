@@ -14,6 +14,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import StatusControls from "./StatusControls";
 import InviteForm from "./InviteForm";
 import RemoveMemberButton from "./RemoveMemberButton";
@@ -75,9 +76,13 @@ export default async function CohortManagePage({
     redirect(userRow?.role === "faculty" ? "/faculty/dashboard" : "/simulation");
   }
 
+  // Admin role confirmed — use the service-role client for membership/user
+  // queries so RLS on `users` does not blank out the embedded join.
+  const supabaseAdmin = createAdminClient();
+
   // ── Load cohort ──────────────────────────────────────────────────────────────
 
-  const { data: cohort } = await supabase
+  const { data: cohort } = await supabaseAdmin
     .from("cohorts")
     .select(
       "id, name, description, status, academy_start_date, academy_end_date, simulator_deadline, scenario_version_id"
@@ -91,17 +96,17 @@ export default async function CohortManagePage({
 
   const [scenarioVersionRes, participantMembershipsRes, facultyMembershipsRes] =
     await Promise.all([
-      supabase
+      supabaseAdmin
         .from("scenario_versions")
         .select("version_label, scenarios(title)")
         .eq("id", cohort.scenario_version_id)
         .maybeSingle(),
-      supabase
+      supabaseAdmin
         .from("cohort_memberships")
         .select("user_id, invitation_status, invited_at, users(id, first_name, last_name, email)")
         .eq("cohort_id", params.cohortId)
         .eq("cohort_role", "participant"),
-      supabase
+      supabaseAdmin
         .from("cohort_memberships")
         .select("user_id, invitation_status, invited_at, users(id, first_name, last_name, email)")
         .eq("cohort_id", params.cohortId)
@@ -116,7 +121,7 @@ export default async function CohortManagePage({
 
   const { data: runsData } =
     participantIds.length > 0
-      ? await supabase
+      ? await supabaseAdmin
           .from("simulation_runs")
           .select("user_id, status, completed_at")
           .eq("cohort_id", params.cohortId)

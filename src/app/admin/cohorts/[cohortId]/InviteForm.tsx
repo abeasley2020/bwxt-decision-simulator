@@ -26,6 +26,8 @@ interface Props {
 export default function InviteForm({ cohortId, inviteeRole }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{
@@ -48,6 +50,8 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
 
   function handleCancel() {
     setOpen(false);
+    setFirstName("");
+    setLastName("");
     setEmail("");
     setMessage(null);
     setTempPassword(null);
@@ -67,8 +71,10 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const trimmed = email.trim();
-    if (!trimmed) return;
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedFirst = firstName.trim();
+    const trimmedLast = lastName.trim();
+    if (!trimmedEmail) return;
 
     setLoading(true);
     setMessage(null);
@@ -78,7 +84,12 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
       const res = await fetch(`/api/admin/cohorts/${cohortId}/invite`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed, role: inviteeRole }),
+        body: JSON.stringify({
+          email: trimmedEmail,
+          role: inviteeRole,
+          firstName: trimmedFirst || null,
+          lastName: trimmedLast || null,
+        }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -91,19 +102,26 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
         return;
       }
 
+      const displayName =
+        trimmedFirst || trimmedLast
+          ? `${trimmedFirst} ${trimmedLast}`.trim()
+          : trimmedEmail;
+
       if (data.existed) {
         setMessage({
           type: "success",
-          text: `${trimmed} has been added to this cohort as ${roleLabel.toLowerCase()}.`,
+          text: `${displayName} has been added to this cohort as ${roleLabel.toLowerCase()}.`,
         });
       } else {
         setMessage({
           type: "success",
-          text: `New account created for ${trimmed}. Share the temporary password below — they can change it after first login.`,
+          text: `New account created for ${displayName}. Share the temporary password below — they can change it after first login.`,
         });
         setTempPassword(data.tempPassword ?? null);
       }
 
+      setFirstName("");
+      setLastName("");
       setEmail("");
       setOpen(false);
       router.refresh();
@@ -134,8 +152,51 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
         <form
           onSubmit={handleSubmit}
           className="flex items-start gap-2 flex-wrap"
-          aria-label={`Add ${roleLabel.toLowerCase()} by email`}
+          aria-label={`Add ${roleLabel.toLowerCase()}`}
         >
+          <div className="min-w-[140px]">
+            <label
+              htmlFor={`invite-first-${inviteeRole}`}
+              className="sr-only"
+            >
+              First name
+            </label>
+            <input
+              ref={inputRef}
+              id={`invite-first-${inviteeRole}`}
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="First name"
+              autoComplete="given-name"
+              className="
+                w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900
+                focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent
+              "
+            />
+          </div>
+
+          <div className="min-w-[140px]">
+            <label
+              htmlFor={`invite-last-${inviteeRole}`}
+              className="sr-only"
+            >
+              Last name
+            </label>
+            <input
+              id={`invite-last-${inviteeRole}`}
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Last name"
+              autoComplete="family-name"
+              className="
+                w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900
+                focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent
+              "
+            />
+          </div>
+
           <div className="flex-1 min-w-[220px]">
             <label
               htmlFor={`invite-email-${inviteeRole}`}
@@ -144,7 +205,6 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
               Email address for {roleLabel.toLowerCase()}
             </label>
             <input
-              ref={inputRef}
               id={`invite-email-${inviteeRole}`}
               type="email"
               value={email}
@@ -152,6 +212,7 @@ export default function InviteForm({ cohortId, inviteeRole }: Props) {
               placeholder="name@example.com"
               required
               aria-required="true"
+              autoComplete="email"
               className="
                 w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900
                 focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent

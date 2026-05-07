@@ -53,7 +53,7 @@ export async function POST(
   }
 
   // ── Parse request body ───────────────────────────────────────────────────────
-  let body: { email?: string; role?: string };
+  let body: { email?: string; role?: string; firstName?: string | null; lastName?: string | null };
   try {
     body = await request.json();
   } catch {
@@ -62,6 +62,8 @@ export async function POST(
 
   const email = body.email?.toString().trim().toLowerCase();
   const role = body.role;
+  const firstName = body.firstName?.toString().trim() || null;
+  const lastName = body.lastName?.toString().trim() || null;
 
   if (!email || !["participant", "faculty"].includes(role ?? "")) {
     return NextResponse.json(
@@ -77,7 +79,10 @@ export async function POST(
     data: { users: authUsers },
   } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
 
-  let authUser = authUsers.find((u) => u.email === email) ?? null;
+  // Compare lowercased on both sides — Supabase Auth stores normalised emails
+  // but defensive lowercasing prevents lookup misses if anything upstream
+  // ever stored a mixed-case address.
+  let authUser = authUsers.find((u) => u.email?.toLowerCase() === email) ?? null;
   let tempPassword: string | null = null;
 
   if (!authUser) {
@@ -103,10 +108,12 @@ export async function POST(
   // ── STEP 2 — Find or create public.users record ──────────────────────────────
   console.log(`[invite] Step 2: looking up public.users for ${email}`);
 
+  // Use ilike for the lookup so a row stored with stray capitalisation still
+  // matches and we don't end up creating a duplicate.
   const { data: publicUser } = await supabaseAdmin
     .from("users")
-    .select("id")
-    .eq("email", email)
+    .select("id, email, first_name, last_name")
+    .ilike("email", email)
     .maybeSingle();
 
   if (!publicUser) {
@@ -114,8 +121,8 @@ export async function POST(
     const { error } = await supabaseAdmin.from("users").insert({
       id: authUserId,
       email,
-      first_name: email.split("@")[0],
-      last_name: "",
+      first_name: firstName ?? email.split("@")[0],
+      last_name: lastName ?? "",
       role: role as string,
     });
     if (error) {
@@ -125,6 +132,34 @@ export async function POST(
     console.log(`[invite] Step 2: created public.users record`);
   } else {
     console.log(`[invite] Step 2: found existing public.users record ${publicUser.id}`);
+
+    // Fill in missing first/last name when the admin provided them now.
+    // We don't overwrite real names that are already set, but we do replace
+    // the email-prefix placeholder that the old invite path used to write.
+    const emailPrefix = email.split("@")[0];
+    const currentFirst = publicUser.first_name ?? "";
+    const currentLast = publicUser.last_name ?? "";
+    const firstIsPlaceholder = !currentFirst || currentFirst === emailPrefix;
+    const lastIsPlaceholder = !currentLast;
+
+    const updates: Record<string, string> = {};
+    if (firstName && firstIsPlaceholder) updates.first_name = firstName;
+    if (lastName && lastIsPlaceholder) updates.last_name = lastName;
+    // Normalise stored email to lowercase if it isn't already
+    if (publicUser.email !== email) updates.email = email;
+
+    if (Object.keys(updates).length > 0) {
+      const { error: updateError } = await supabaseAdmin
+        .from("users")
+        .update(updates)
+        .eq("id", publicUser.id);
+      if (updateError) {
+        console.error(`[invite] Step 2 UPDATE FAILED: ${updateError.message}`);
+        // Non-fatal — continue with cohort assignment.
+      } else {
+        console.log(`[invite] Step 2: updated public.users with`, Object.keys(updates));
+      }
+    }
   }
 
   const userId = publicUser?.id ?? authUserId;

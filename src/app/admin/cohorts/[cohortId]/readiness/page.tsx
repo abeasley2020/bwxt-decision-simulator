@@ -25,6 +25,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import ExportButton from "./ExportButton";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -70,9 +71,13 @@ export default async function ReadinessPage({
     redirect(userRow?.role === "faculty" ? "/faculty/dashboard" : "/simulation");
   }
 
+  // Admin role confirmed — use service-role client for membership/user/runs
+  // queries so RLS on `users` does not blank out the embedded join.
+  const supabaseAdmin = createAdminClient();
+
   // ── Load cohort ──────────────────────────────────────────────────────────────
 
-  const { data: cohort } = await supabase
+  const { data: cohort } = await supabaseAdmin
     .from("cohorts")
     .select("id, name, simulator_deadline")
     .eq("id", params.cohortId)
@@ -82,7 +87,7 @@ export default async function ReadinessPage({
 
   // ── Load participants ─────────────────────────────────────────────────────
 
-  const { data: memberships } = await supabase
+  const { data: memberships } = await supabaseAdmin
     .from("cohort_memberships")
     .select("user_id, users(id, first_name, last_name, email)")
     .eq("cohort_id", params.cohortId)
@@ -97,7 +102,7 @@ export default async function ReadinessPage({
 
   const { data: runs } =
     participantIds.length > 0
-      ? await supabase
+      ? await supabaseAdmin
           .from("simulation_runs")
           .select("user_id, status, last_active_at, completed_at")
           .eq("cohort_id", params.cohortId)

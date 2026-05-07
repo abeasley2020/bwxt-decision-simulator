@@ -16,6 +16,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getActiveFacultyCohort } from "@/lib/faculty/getActiveFacultyCohort";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
 
@@ -64,6 +65,10 @@ export default async function ParticipantListPage() {
     redirect("/simulation");
   }
 
+  // Faculty/admin role confirmed — use service-role client for membership/user/runs
+  // queries so RLS on `users` does not blank out the embedded join.
+  const supabaseAdmin = createAdminClient();
+
   // ── Cohort selection ────────────────────────────────────────────────────────
 
   const cohort = await getActiveFacultyCohort(supabase, user.id);
@@ -84,12 +89,12 @@ export default async function ParticipantListPage() {
   // ── Load participants ─────────────────────────────────────────────────────
 
   const [membershipsRes, profilesRes] = await Promise.all([
-    supabase
+    supabaseAdmin
       .from("cohort_memberships")
       .select("user_id, users(id, first_name, last_name, email)")
       .eq("cohort_id", cohort.id)
       .eq("cohort_role", "participant"),
-    supabase.from("performance_profiles").select("id, key, label"),
+    supabaseAdmin.from("performance_profiles").select("id, key, label"),
   ]);
 
   // Supabase embedded joins return arrays even for one-to-one FK relationships
@@ -105,7 +110,7 @@ export default async function ParticipantListPage() {
 
   // ── Load simulation runs for this cohort ──────────────────────────────────
 
-  const { data: runsData } = await supabase
+  const { data: runsData } = await supabaseAdmin
     .from("simulation_runs")
     .select("id, user_id, status, final_profile_id, completed_at")
     .eq("cohort_id", cohort.id)
