@@ -12,6 +12,7 @@ import type {
   DecisionTemplate,
   EffectApplicationResult,
   KPIValues,
+  ScenarioRound,
   ScoreValues,
   KPIKey,
   ScoringDimensionKey,
@@ -124,6 +125,48 @@ function evaluateConditions(
   }
 
   return true;
+}
+
+/**
+ * Re-derive the hidden traits a participant acquired across the whole
+ * simulation by replaying their stored decision responses through the
+ * engine, round by round, from the initial state.
+ *
+ * Traits are computed during round submission but never persisted, so
+ * profile assignment must reconstruct them at results time. Replaying
+ * with accumulated KPI/score state keeps conditional effect rules
+ * (kpi_above / kpi_below) evaluating exactly as they did during play.
+ */
+export function deriveAcquiredTraits(
+  responses: DecisionResponse[],
+  rounds: ScenarioRound[],
+  initialKPIs: KPIValues,
+  initialScores: ScoreValues
+): string[] {
+  let kpis = { ...initialKPIs };
+  let scores = { ...initialScores };
+  const traits: string[] = [];
+
+  const sortedRounds = [...rounds].sort((a, b) => a.roundNumber - b.roundNumber);
+
+  for (const round of sortedRounds) {
+    const roundResponses = responses.filter(
+      (r) => r.roundNumber === round.roundNumber
+    );
+    if (roundResponses.length === 0) continue;
+
+    const result = applyRoundResponses(
+      roundResponses,
+      round.decisions,
+      kpis,
+      scores
+    );
+    kpis = result.updatedKPIs;
+    scores = result.updatedScores;
+    traits.push(...result.acquiredTraits);
+  }
+
+  return traits;
 }
 
 /**

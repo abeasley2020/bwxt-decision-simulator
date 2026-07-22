@@ -126,7 +126,10 @@ function deriveFallbackProfile(scores: ScoreValues): PerformanceProfileKey {
     decision_velocity_with_discipline: "disciplined_accelerator",
     financial_strategic_acumen: "functional_optimizer",
     technology_data_leadership: "data_enabled_builder",
-    talent_leadership: "talent_blind_spot",
+    // A top dimension of talent_leadership means talent STRENGTH — mapping
+    // it to talent_blind_spot inverted the profile's meaning. Enterprise
+    // Catalyst is the closest people-forward archetype.
+    talent_leadership: "enterprise_catalyst",
     communication_alignment: "strategic_communicator",
     continuous_improvement_orientation: "cautious_operator",
   };

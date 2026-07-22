@@ -148,12 +148,15 @@ export const PERFORMANCE_PROFILES: PerformanceProfile[] = [
       {
         priorityOrder: 60,
         ruleLogicJson: {
-          kpiThresholds: {
-            talent_readiness: 0,
-          },
+          // Strong judgment but chronically low investment in talent.
+          // talent_leadership is a CEILING (must be at or below 4),
+          // matching the seeded DB rule. A minimum of 0 here previously
+          // made this rule a near catch-all.
           scoreThresholds: {
             enterprise_judgment: 6,
-            talent_leadership: 0,
+          },
+          scoreCeilings: {
+            talent_leadership: 4,
           },
         },
       },

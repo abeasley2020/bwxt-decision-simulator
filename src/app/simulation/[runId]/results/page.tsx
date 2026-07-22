@@ -29,6 +29,7 @@ import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
 import { assignPerformanceProfile } from "@/engine/profiling";
+import { loadAcquiredTraits } from "@/lib/simulation/loadAcquiredTraits";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 import type {
   KPIValues,
@@ -162,6 +163,14 @@ export default async function ResultsPage({ params }: Props) {
     const dbProfiles = dbProfilesRes.data ?? [];
     const dbRules = dbRulesRes.data ?? [];
 
+    // Hidden traits are not persisted — replay stored responses to
+    // reconstruct them so trait-gated profile rules can match.
+    const acquiredTraits = await loadAcquiredTraits(
+      supabase,
+      run.id,
+      run.scenario_version_id
+    );
+
     if (dbProfiles.length > 0) {
       // Build PerformanceProfile[] from DB records for the engine
       const engineProfiles: PerformanceProfile[] = dbProfiles.map((p) => ({
@@ -181,7 +190,7 @@ export default async function ResultsPage({ params }: Props) {
       const result = assignPerformanceProfile(
         finalKPIs,
         finalScores,
-        [],
+        acquiredTraits,
         engineProfiles
       );
       assignedProfileKey = result.profileKey;
@@ -201,7 +210,7 @@ export default async function ResultsPage({ params }: Props) {
       const result = assignPerformanceProfile(
         finalKPIs,
         finalScores,
-        [],
+        acquiredTraits,
         PERFORMANCE_PROFILES
       );
       assignedProfileKey = result.profileKey;

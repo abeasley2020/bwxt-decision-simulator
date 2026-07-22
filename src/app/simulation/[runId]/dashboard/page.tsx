@@ -22,6 +22,7 @@ import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
 import { assignPerformanceProfile } from "@/engine/profiling";
+import { loadAcquiredTraits } from "@/lib/simulation/loadAcquiredTraits";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 import type {
   KPIValues,
@@ -172,6 +173,14 @@ export default async function ParticipantDashboardPage({ params }: Props) {
     const dbProfiles = dbProfilesRes.data ?? [];
     const dbRules = dbRulesRes.data ?? [];
 
+    // Hidden traits are not persisted — replay stored responses to
+    // reconstruct them so trait-gated profile rules can match.
+    const acquiredTraits = await loadAcquiredTraits(
+      supabase,
+      run.id,
+      run.scenario_version_id
+    );
+
     if (dbProfiles.length > 0) {
       const engineProfiles: PerformanceProfile[] = dbProfiles.map((p) => ({
         key: p.key as PerformanceProfileKey,
@@ -187,7 +196,7 @@ export default async function ParticipantDashboardPage({ params }: Props) {
           })),
       }));
 
-      const result = assignPerformanceProfile(finalKPIs, finalScores, [], engineProfiles);
+      const result = assignPerformanceProfile(finalKPIs, finalScores, acquiredTraits, engineProfiles);
       assignedProfileKey = result.profileKey;
 
       const matched = dbProfiles.find((p) => p.key === result.profileKey);
@@ -198,7 +207,7 @@ export default async function ParticipantDashboardPage({ params }: Props) {
           .eq("id", run.id);
       }
     } else {
-      const result = assignPerformanceProfile(finalKPIs, finalScores, [], PERFORMANCE_PROFILES);
+      const result = assignPerformanceProfile(finalKPIs, finalScores, acquiredTraits, PERFORMANCE_PROFILES);
       assignedProfileKey = result.profileKey;
     }
   }
