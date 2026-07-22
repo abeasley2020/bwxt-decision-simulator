@@ -38,7 +38,9 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes that don't require auth
-  const publicPaths = ["/login", "/auth/verify", "/api/auth"];
+  // /walkthrough is the static SME/ID demo (public/walkthrough.html). It has
+  // no participant data; engine and content are baked into the file.
+  const publicPaths = ["/login", "/auth/verify", "/api/auth", "/walkthrough"];
   const isPublic = publicPaths.some((p) => pathname.startsWith(p));
 
   if (!user && !isPublic) {
