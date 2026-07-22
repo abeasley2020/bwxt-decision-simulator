@@ -31,20 +31,30 @@ other route still requires auth (verified: `/faculty/dashboard` redirects to
 `/login`). Anyone with the walkthrough URL can view it, so treat the link as
 semi-public.
 
-### Known issues found while porting the engine
+### Known issues
 
-These are real defects in production code, surfaced by recreating the engine
-faithfully. None are fixed yet.
+1. **Open:** `src/content/iron-horizon/consequences.ts` has no Round 3 entry, so
+   the app shows a generic fallback after the AI Inflection round instead of a
+   written consequence narrative. Needs authored content from an SME.
+2. **Fixed 2026-07-22 (commit 995aa89):** profile assignment previously passed an
+   empty traits array. Traits are now re-derived by replaying stored responses
+   (`deriveAcquiredTraits` in the engine, `loadAcquiredTraits` server helper).
+3. **Fixed 2026-07-22 (commit 995aa89):** the `talent_blind_spot` content rule
+   used a minimum of 0 (always true) instead of a ceiling. Now a ceiling of 4,
+   matching the DB rule. The profiling fallback map also no longer sends a top
+   talent_leadership dimension to talent_blind_spot.
 
-1. `src/content/iron-horizon/consequences.ts` has no Round 3 entry, so the app
-   shows a generic fallback after the AI Inflection round instead of a written
-   consequence narrative. Needs authored content from an SME.
-2. `src/app/simulation/[runId]/results/page.tsx` calls `assignPerformanceProfile()`
-   with an empty traits array, so the four trait-gated profiles are unreachable
-   except through the fallback path.
-3. The `talent_blind_spot` rule in `profiles.ts` uses `talent_leadership: 0` as a
-   minimum, which is always true, where a ceiling was almost certainly intended.
-   At priority 60 it acts as a near catch-all, so people-first runs can land on it.
+**Correction to the earlier framing of items 2 and 3:** the live DB profile
+rules (what production actually uses) are trait-free and already had the
+ceiling, so no real participant received a wrong profile through the DB path.
+Verified by 20k-path simulation: zero assignment differences under DB rules
+with and without traits. The defects were real but lived in the content layer:
+the DB-unseeded fallback path and the walkthrough.
+
+**Known divergence, intentional for now:** the DB rule set (`seed.sql`, what
+production uses) and the content rule set (`profiles.ts`, richer, trait-gated)
+are different rule systems. CLAUDE.md documents this. The static walkthrough
+still embeds the pre-fix engine copy and should be regenerated when convenient.
 
 ### Carry-over from the 2026-05-07 session (verify before acting)
 
@@ -59,11 +69,9 @@ faithfully. None are fixed yet.
 
 1. **Send the `/walkthrough` link to Jess, Andrea, and Mickey for review.** The
    draft email is written; it needs the production domain substituted in.
-2. Fix the two code defects above (empty traits array, and the `talent_blind_spot`
-   minimum that should be a ceiling). Both affect which profile a real participant
-   is assigned.
-3. Commission the Round 3 consequence narrative from an SME.
-4. Decide whether the walkthrough needs a passphrase gate before wider circulation.
+2. Commission the Round 3 consequence narrative from an SME.
+3. Decide whether the walkthrough needs a passphrase gate before wider circulation.
+4. Regenerate `public/walkthrough.html` so it carries the fixed engine and rules.
 
 ---
 
@@ -80,5 +88,24 @@ faithfully. None are fixed yet.
   Surfaced three engine and content defects, documented above.
 - **In progress:** Nothing on product code. Local tooling only: `.claude/launch.json`
   (dev server config, untracked) and a modified `.claude/settings.local.json`.
+- **Next action:** Send the `/walkthrough` link to Jess, Andrea, and Mickey.
+- **Blocker:** none.
+
+## Closeout 2026-07-22 (session 2)
+
+- **Window:** later the same day; commits `995aa89` and `92eef59` on top of
+  `aff3be5`/`8549132`.
+- **Completed:** Fixed walkthrough findings 2 and 3. Traits are now re-derived
+  from stored responses and passed at all four profile-assignment call sites;
+  `talent_blind_spot` content rule changed from an always-true minimum to a
+  ceiling of 4; the profiling fallback map no longer inverts top talent
+  strength into talent_blind_spot. Verified with a 9-check simulation suite
+  against the compiled engine: old content rules assigned talent_blind_spot to
+  66.5% of 20k random runs, fixed rules 2.7% with all 8 profiles reachable, and
+  zero assignment changes under the live DB rules, so existing participant
+  profiles are untouched. Confirmed against the live database that prod rules
+  already used the ceiling, and corrected the previous closeout's overstated
+  claim accordingly. Added CLAUDE.md.
+- **In progress:** nothing.
 - **Next action:** Send the `/walkthrough` link to Jess, Andrea, and Mickey.
 - **Blocker:** none.
