@@ -11,12 +11,16 @@
  * complete enough to produce a meaningful report (must have at least
  * status === "completed", which guarantees executive recommendation
  * has been submitted).
+ *
+ * Throws DataAccessError when a query fails, so a database problem renders an
+ * error instead of a report with missing decisions or a blank trajectory.
  */
 
 import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
+import { throwOnQueryError } from "@/lib/errors";
 import type {
   KPIValues,
   ScoreValues,
@@ -156,7 +160,8 @@ export async function loadReportData(
     runQuery = runQuery.eq("user_id", options.requireUserId);
   }
 
-  const { data: run } = await runQuery.maybeSingle();
+  const { data: run, error: runError } = await runQuery.maybeSingle();
+  throwOnQueryError("simulation_runs lookup", runError);
   if (!run) return null;
 
   // Report only available after the simulation is fully complete
@@ -176,16 +181,21 @@ export async function loadReportData(
       .maybeSingle(),
   ]);
 
+  throwOnQueryError("users lookup", participantRes.error);
+  throwOnQueryError("cohorts lookup", cohortRes.error);
+
   const participantUser = participantRes.data;
   if (!participantUser) return null;
 
   // ── Load scenario rounds ─────────────────────────────────────────────────
 
-  const { data: scenarioRounds } = await supabase
+  const { data: scenarioRounds, error: scenarioRoundsError } = await supabase
     .from("scenario_rounds")
     .select("id, round_number")
     .eq("scenario_version_id", run.scenario_version_id)
     .order("round_number");
+
+  throwOnQueryError("scenario_rounds lookup", scenarioRoundsError);
 
   const roundIdToNumber = new Map(
     (scenarioRounds ?? []).map((r: { id: string; round_number: number }) => [
@@ -244,6 +254,16 @@ export async function loadReportData(
       .maybeSingle(),
     supabase.from("performance_profiles").select("id, key"),
   ]);
+
+  throwOnQueryError("kpi_snapshots lookup", kpiSnapshotsRes.error);
+  throwOnQueryError("score_snapshots lookup", scoreSnapshotsRes.error);
+  throwOnQueryError("decision_responses lookup", decisionResponsesRes.error);
+  throwOnQueryError("decision_templates lookup", templateRowsRes.error);
+  throwOnQueryError(
+    "executive_recommendations lookup",
+    recommendationRes.error
+  );
+  throwOnQueryError("performance_profiles lookup", dbProfilesRes.error);
 
   // ── Build KPI values ─────────────────────────────────────────────────────
 

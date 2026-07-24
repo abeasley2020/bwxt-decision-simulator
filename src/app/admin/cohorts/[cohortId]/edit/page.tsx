@@ -17,6 +17,8 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import FormErrorAlert from "@/components/admin/FormErrorAlert";
+import { throwOnQueryError } from "@/lib/errors";
 
 // ─── Date formatters for input default values ─────────────────────────────────
 
@@ -36,8 +38,10 @@ function toDatetimeLocalInput(d: string | null): string {
 
 export default async function EditCohortPage({
   params,
+  searchParams,
 }: {
   params: { cohortId: string };
+  searchParams: { error?: string };
 }) {
   const supabase = createClient();
 
@@ -62,7 +66,7 @@ export default async function EditCohortPage({
 
   // ── Load cohort ──────────────────────────────────────────────────────────────
 
-  const { data: cohort } = await supabase
+  const { data: cohort, error: cohortError } = await supabase
     .from("cohorts")
     .select(
       "id, name, description, status, academy_start_date, academy_end_date, simulator_deadline"
@@ -70,6 +74,8 @@ export default async function EditCohortPage({
     .eq("id", params.cohortId)
     .maybeSingle();
 
+  // A failed lookup is not a missing cohort, so do not render "not found".
+  throwOnQueryError("cohorts lookup", cohortError);
   if (!cohort) notFound();
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -90,6 +96,8 @@ export default async function EditCohortPage({
         <h1 className="text-2xl font-bold text-brand-navy mt-2">Edit Cohort</h1>
         <p className="text-gray-500 text-sm mt-1">{cohort.name}</p>
       </div>
+
+      <FormErrorAlert code={searchParams.error} />
 
       {/* ── Form ────────────────────────────────────────────────────────── */}
       <div className="bg-white border border-gray-200 rounded-xl p-6">

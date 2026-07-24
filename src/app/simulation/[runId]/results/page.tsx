@@ -30,6 +30,7 @@ import { SCORING_DIMENSIONS } from "@/engine/scoring";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
 import { assignPerformanceProfile } from "@/engine/profiling";
 import { loadAcquiredTraits } from "@/lib/simulation/loadAcquiredTraits";
+import { logQueryError, throwOnQueryError } from "@/lib/errors";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 import type {
   KPIValues,
@@ -58,7 +59,7 @@ export default async function ResultsPage({ params }: Props) {
     .maybeSingle();
   const userId = publicUser?.id ?? user.id;
 
-  const { data: run } = await supabase
+  const { data: run, error: runError } = await supabase
     .from("simulation_runs")
     .select(
       "id, status, current_round_number, user_id, scenario_version_id, final_profile_id, is_preview"
@@ -67,6 +68,8 @@ export default async function ResultsPage({ params }: Props) {
     .eq("user_id", userId)
     .maybeSingle();
 
+  // A failed lookup is not a missing run, so do not render "not found".
+  throwOnQueryError("simulation_runs lookup", runError);
   if (!run) notFound();
   if (run.status === "not_started") {
     redirect(`/simulation/${run.id}/orientation`);
@@ -78,11 +81,13 @@ export default async function ResultsPage({ params }: Props) {
 
   // ── Load scenario round IDs ─────────────────────────────────────────────────
 
-  const { data: scenarioRounds } = await supabase
+  const { data: scenarioRounds, error: scenarioRoundsError } = await supabase
     .from("scenario_rounds")
     .select("id, round_number")
     .eq("scenario_version_id", run.scenario_version_id)
     .order("round_number");
+
+  throwOnQueryError("scenario_rounds lookup", scenarioRoundsError);
 
   const roundIdMap = new Map(
     (scenarioRounds ?? []).map((r) => [r.round_number as number, r.id as string])
@@ -92,7 +97,7 @@ export default async function ResultsPage({ params }: Props) {
 
   const makeRoundKpiQuery = (roundNum: number) => {
     const rid = roundIdMap.get(roundNum);
-    if (!rid) return Promise.resolve({ data: null });
+    if (!rid) return Promise.resolve({ data: null, error: null });
     return supabase
       .from("kpi_snapshots")
       .select("kpi_values_json")
@@ -122,7 +127,7 @@ export default async function ResultsPage({ params }: Props) {
     makeRoundKpiQuery(3),
     (() => {
       const rid = roundIdMap.get(3);
-      if (!rid) return Promise.resolve({ data: null });
+      if (!rid) return Promise.resolve({ data: null, error: null });
       return supabase
         .from("score_snapshots")
         .select("score_values_json")
@@ -138,6 +143,16 @@ export default async function ResultsPage({ params }: Props) {
       .from("profile_rules")
       .select("performance_profile_id, priority_order, rule_logic_json"),
   ]);
+
+  // Profile assignment below is persisted permanently, so partial reads must
+  // not be treated as "no data".
+  throwOnQueryError("initial kpi_snapshots lookup", initialKpiRes.error);
+  throwOnQueryError("round 1 kpi_snapshots lookup", r1KpiRes.error);
+  throwOnQueryError("round 2 kpi_snapshots lookup", r2KpiRes.error);
+  throwOnQueryError("round 3 kpi_snapshots lookup", r3KpiRes.error);
+  throwOnQueryError("score_snapshots lookup", finalScoreRes.error);
+  throwOnQueryError("performance_profiles lookup", dbProfilesRes.error);
+  throwOnQueryError("profile_rules lookup", dbRulesRes.error);
 
   // ── Build KPI state ─────────────────────────────────────────────────────────
 
@@ -197,13 +212,16 @@ export default async function ResultsPage({ params }: Props) {
 
       const matched = dbProfiles.find((p) => p.key === result.profileKey);
       if (matched) {
-        await supabase
+        // Non-fatal: the profile shown is still correct, it just gets
+        // recomputed on the next visit.
+        const { error: persistError } = await supabase
           .from("simulation_runs")
           .update({
             final_profile_id: matched.id,
             last_active_at: new Date().toISOString(),
           })
           .eq("id", run.id);
+        logQueryError("final_profile_id persist", persistError);
       }
     } else {
       // Fallback: use TypeScript profiles if DB not seeded

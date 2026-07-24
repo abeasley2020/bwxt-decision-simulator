@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logQueryError } from "@/lib/errors";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -14,17 +15,21 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
+    if (error) {
+      console.error("[auth callback] code exchange failed:", error.message);
+    } else {
       // If an explicit next param was provided, honour it; otherwise route by role
       if (next) {
         return NextResponse.redirect(`${origin}${next}`);
       }
 
-      const { data: userData } = await supabase
+      const { data: userData, error: roleError } = await supabase
         .from("users")
         .select("role")
         .eq("id", data.user.id)
         .single();
+
+      logQueryError("[auth callback] role lookup", roleError);
 
       const role = userData?.role;
       if (role === "admin") {

@@ -1,13 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
+// Reasons the auth callback can bounce back here. Without this the redirect
+// looked like a plain sign-in page and the failure went unexplained.
+const REDIRECT_ERRORS: Record<string, string> = {
+  invalid_link:
+    "That sign-in link is invalid or has expired. Sign in with your password, or request a new link.",
+};
+
+function LoginForm() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    REDIRECT_ERRORS[searchParams.get("error") ?? ""] ?? null
+  );
   const [loading, setLoading] = useState(false);
 
   const supabase = createClient();
@@ -29,11 +39,20 @@ export default function LoginPage() {
     // Look up role from public.users by email (source of truth).
     // Email lookup is used instead of ID to handle any case where
     // auth.users.id and public.users.id differ.
-    const { data: userData } = await supabase
+    const { data: userData, error: roleError } = await supabase
       .from("users")
       .select("role")
       .eq("email", authData.user.email!)
       .single();
+
+    // Without this an admin whose role query failed lands on the participant
+    // simulation page as if they had no elevated role.
+    if (roleError) {
+      console.error("[login] role lookup failed:", roleError.message);
+      setError("Signed in, but your account could not be loaded. Please try again.");
+      setLoading(false);
+      return;
+    }
 
     const role = userData?.role;
     if (role === "admin") {
@@ -296,5 +315,13 @@ export default function LoginPage() {
           </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }
