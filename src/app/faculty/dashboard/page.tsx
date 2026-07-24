@@ -13,13 +13,15 @@
  * all interactive links keyboard accessible with visible focus rings.
  */
 
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveFacultyCohort } from "@/lib/faculty/getActiveFacultyCohort";
+import { requireFacultyViewer } from "@/lib/auth/roleGuards";
+import NoCohortAssigned from "@/components/faculty/NoCohortAssigned";
 import { KPI_DEFINITIONS } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
 import type { KPIKey, KPIValues, ScoringDimensionKey, ScoreValues } from "@/engine/types";
+import { formatLongDate } from "@/lib/format/date";
 
 // ─── Inline averaging helpers ────────────────────────────────────────────────
 
@@ -55,54 +57,22 @@ function avgScores(
   ) as ScoreValues;
 }
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function FacultyDashboardPage() {
   const supabase = createClient();
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Auth and role gate ──────────────────────────────────────────────────────
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // ── Role check ──────────────────────────────────────────────────────────────
-
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role, first_name, last_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!userRow || userRow.role === "participant") {
-    redirect("/simulation");
-  }
+  const viewer = await requireFacultyViewer(supabase);
 
   // ── Cohort selection ────────────────────────────────────────────────────────
 
-  const cohort = await getActiveFacultyCohort(supabase, user.id);
+  const cohort = await getActiveFacultyCohort(supabase, viewer.userId);
 
   if (!cohort) {
     return (
-      <main className="max-w-6xl mx-auto px-6 py-16 text-center">
-        <h1 className="text-2xl font-bold text-brand-navy mb-3">
-          No Cohort Assigned
-        </h1>
-        <p className="text-gray-500 text-sm max-w-sm mx-auto">
-          You are not assigned to any active cohort as faculty. Contact your
-          administrator to be assigned to a cohort.
-        </p>
-      </main>
+      <NoCohortAssigned description="You are not assigned to any active cohort as faculty. Contact your administrator to be assigned to a cohort." />
     );
   }
 
@@ -244,9 +214,9 @@ export default async function FacultyDashboardPage() {
               {cohort.academy_start_date || cohort.academy_end_date ? (
                 <>
                   Academy:{" "}
-                  {formatDate(cohort.academy_start_date)}
+                  {formatLongDate(cohort.academy_start_date)}
                   {cohort.academy_end_date && (
-                    <> &ndash; {formatDate(cohort.academy_end_date)}</>
+                    <> &ndash; {formatLongDate(cohort.academy_end_date)}</>
                   )}
                 </>
               ) : (

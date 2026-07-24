@@ -8,6 +8,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { formatFullName } from "@/lib/format/name";
 
 function statusBadgeStyle(status: string): React.CSSProperties {
   if (status === "completed")
@@ -153,9 +154,9 @@ export default async function AdminParticipantsPage() {
                   email: string;
                 } | null;
                 const cohort = m.cohorts as unknown as { name: string } | null;
-                const fullName = u
-                  ? [u.first_name, u.last_name].filter(Boolean).join(" ") || "—"
-                  : "—";
+                const fullName = formatFullName(
+                  u ? { first_name: u.first_name, last_name: u.last_name } : null
+                );
                 const run = u ? runsByUser[u.id] : undefined;
                 const simStatus = run?.status ?? "not_started";
 

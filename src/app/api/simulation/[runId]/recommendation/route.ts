@@ -17,6 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/currentUser";
 
 interface RecommendationBody {
   prioritizedStrategy: string;
@@ -40,19 +41,11 @@ export async function POST(
 ) {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const current = await getCurrentUser(supabase);
+  if (!current) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  const { data: publicUser } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", user.email!)
-    .maybeSingle();
-  const userId = publicUser?.id ?? user.id;
+  const userId = current.userId;
 
   // Verify run ownership and eligibility
   const { data: run } = await supabase

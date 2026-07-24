@@ -14,6 +14,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { firstRelation } from "@/lib/supabase/relations";
 
 export default async function NewCohortPage() {
   const supabase = createClient();
@@ -232,9 +233,9 @@ export default async function NewCohortPage() {
                 </option>
                 {versions.map((v) => {
                   const scenarios = v.scenarios;
-                  const scenarioTitle = Array.isArray(scenarios)
-                    ? (scenarios[0] as { title: string } | undefined)?.title
-                    : (scenarios as { title: string } | null)?.title;
+                  const scenarioTitle = firstRelation(
+                    scenarios as { title: string } | { title: string }[] | null
+                  )?.title;
                   return (
                     <option key={v.id} value={v.id}>
                       {scenarioTitle ? `${scenarioTitle} — ` : ""}

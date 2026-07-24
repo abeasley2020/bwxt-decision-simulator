@@ -18,10 +18,12 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { requireCurrentUser } from "@/lib/auth/currentUser";
 import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 import type { KPIValues, PerformanceProfileKey } from "@/engine/types";
+import { formatLongDate } from "@/lib/format/date";
 
 interface Props {
   params: { runId: string };
@@ -30,17 +32,7 @@ interface Props {
 export default async function CompletePage({ params }: Props) {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: publicUser } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", user.email!)
-    .maybeSingle();
-  const userId = publicUser?.id ?? user.id;
+  const { userId } = await requireCurrentUser(supabase);
 
   const { data: run } = await supabase
     .from("simulation_runs")
@@ -101,13 +93,7 @@ export default async function CompletePage({ params }: Props) {
 
   // ── Completion date display ─────────────────────────────────────────────────
 
-  const completedDate = run.completed_at
-    ? new Date(run.completed_at).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
+  const completedDate = formatLongDate(run.completed_at, "");
 
   return (
     <div className="min-h-screen bg-bwxt-bg">

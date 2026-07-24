@@ -22,10 +22,11 @@
  * and th scope.
  */
 
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveFacultyCohort } from "@/lib/faculty/getActiveFacultyCohort";
+import { requireFacultyViewer } from "@/lib/auth/roleGuards";
+import NoCohortAssigned from "@/components/faculty/NoCohortAssigned";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
 
 // ─── Content index (built once) ───────────────────────────────────────────────
@@ -64,40 +65,16 @@ for (const round of IRON_HORIZON_VERSION.rounds) {
 export default async function DecisionPatternsPage() {
   const supabase = createClient();
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Auth and role gate ──────────────────────────────────────────────────────
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // ── Role check ──────────────────────────────────────────────────────────────
-
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!userRow || userRow.role === "participant") {
-    redirect("/simulation");
-  }
+  const viewer = await requireFacultyViewer(supabase);
 
   // ── Cohort selection ────────────────────────────────────────────────────────
 
-  const cohort = await getActiveFacultyCohort(supabase, user.id);
+  const cohort = await getActiveFacultyCohort(supabase, viewer.userId);
 
   if (!cohort) {
-    return (
-      <main className="max-w-6xl mx-auto px-6 py-16 text-center">
-        <h1 className="text-2xl font-bold text-brand-navy mb-3">
-          No Cohort Assigned
-        </h1>
-        <p className="text-gray-500 text-sm">
-          Contact your administrator to be assigned to a cohort.
-        </p>
-      </main>
-    );
+    return <NoCohortAssigned />;
   }
 
   // ── Load completed simulation runs ────────────────────────────────────────

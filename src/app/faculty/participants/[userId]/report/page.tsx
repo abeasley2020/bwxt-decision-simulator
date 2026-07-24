@@ -15,11 +15,12 @@
  */
 
 import type { Metadata } from "next";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getActiveFacultyCohort } from "@/lib/faculty/getActiveFacultyCohort";
+import { requireFacultyViewer } from "@/lib/auth/roleGuards";
 import { loadReportData } from "@/lib/report/loadReportData";
 import ReportView from "@/components/report/ReportView";
 import PrintButton from "@/components/report/PrintButton";
@@ -35,24 +36,10 @@ export const metadata: Metadata = {
 export default async function FacultyReportPage({ params }: Props) {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // Role gate
-  const { data: viewerRow } = await supabase
-    .from("users")
-    .select("id, role")
-    .eq("email", user.email!)
-    .maybeSingle();
-
-  if (!viewerRow || viewerRow.role === "participant") {
-    redirect("/simulation");
-  }
+  const viewer = await requireFacultyViewer(supabase);
 
   // Active faculty cohort
-  const cohort = await getActiveFacultyCohort(supabase, viewerRow.id);
+  const cohort = await getActiveFacultyCohort(supabase, viewer.userId);
   if (!cohort) notFound();
 
   // Membership check: target user must be a participant in this cohort

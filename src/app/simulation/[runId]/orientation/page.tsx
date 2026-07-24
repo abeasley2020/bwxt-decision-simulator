@@ -19,6 +19,7 @@
 
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireCurrentUser } from "@/lib/auth/currentUser";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
 import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
@@ -32,17 +33,7 @@ interface Props {
 export default async function OrientationPage({ params }: Props) {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: publicUser } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", user.email!)
-    .maybeSingle();
-  const userId = publicUser?.id ?? user.id;
+  const { userId } = await requireCurrentUser(supabase);
 
   const { data: run } = await supabase
     .from("simulation_runs")
