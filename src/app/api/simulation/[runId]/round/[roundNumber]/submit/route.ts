@@ -33,6 +33,8 @@ interface SubmitRequestBody {
   responses: SubmitResponseItem[];
 }
 
+const MAX_RATIONALE_LENGTH = 2000;
+
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export async function POST(
@@ -134,6 +136,75 @@ export async function POST(
         { status: 400 }
       );
     }
+    if (
+      !Array.isArray(response.selectedOptionIds) ||
+      response.selectedOptionIds.some((id) => typeof id !== "string")
+    ) {
+      return NextResponse.json(
+        { error: `${response.decisionKey}: selectedOptionIds must be an array of strings` },
+        { status: 400 }
+      );
+    }
+
+    const optionKeys = new Set(template.options.map((o) => o.key));
+    const unknownOption = response.selectedOptionIds.find(
+      (id) => !optionKeys.has(id)
+    );
+    if (unknownOption) {
+      return NextResponse.json(
+        { error: `${response.decisionKey}: unknown option "${unknownOption}"` },
+        { status: 400 }
+      );
+    }
+
+    if (new Set(response.selectedOptionIds).size !== response.selectedOptionIds.length) {
+      return NextResponse.json(
+        { error: `${response.decisionKey}: duplicate options selected` },
+        { status: 400 }
+      );
+    }
+
+    if (
+      response.shortRationaleText != null &&
+      (typeof response.shortRationaleText !== "string" ||
+        response.shortRationaleText.length > MAX_RATIONALE_LENGTH)
+    ) {
+      return NextResponse.json(
+        {
+          error: `${response.decisionKey}: rationale must be a string of at most ${MAX_RATIONALE_LENGTH} characters`,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (response.allocationJson != null) {
+      if (
+        typeof response.allocationJson !== "object" ||
+        Array.isArray(response.allocationJson)
+      ) {
+        return NextResponse.json(
+          { error: `${response.decisionKey}: allocationJson must be an object` },
+          { status: 400 }
+        );
+      }
+      for (const [key, value] of Object.entries(response.allocationJson)) {
+        if (!optionKeys.has(key)) {
+          return NextResponse.json(
+            { error: `${response.decisionKey}: unknown allocation key "${key}"` },
+            { status: 400 }
+          );
+        }
+        if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 100) {
+          return NextResponse.json(
+            {
+              error: `${response.decisionKey}: allocation for "${key}" must be between 0 and 100`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     if (!template.isRequired) continue;
 
     if (template.decisionType === "single_select") {
