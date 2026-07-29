@@ -53,8 +53,16 @@ the DB-unseeded fallback path and the walkthrough.
 
 **Known divergence, intentional for now:** the DB rule set (`seed.sql`, what
 production uses) and the content rule set (`profiles.ts`, richer, trait-gated)
-are different rule systems. CLAUDE.md documents this. The static walkthrough
-still embeds the pre-fix engine copy and should be regenerated when convenient.
+are different rule systems. CLAUDE.md documents this.
+
+**Walkthrough regenerated 2026-07-29** to match the fixed engine (commit
+995aa89): talent_blind_spot ceiling rule and corrected fallback map ported,
+designer notes refreshed (findings 2 and 3 now shown as fixed; a new note
+explains the DB-vs-content rule-set nuance), authored chrome de-dashed
+(verbatim product copy keeps its dashes), viewport meta added. Verified by
+headless journey simulation against the page's own ported engine plus live
+browser checks; artifact updated at its existing URL. Regeneration procedure
+and scripts live in the `tool-walkthrough-builder` skill (claude-skills repo).
 
 ### Carry-over from the 2026-05-07 session (verify before acting)
 
@@ -71,7 +79,6 @@ still embeds the pre-fix engine copy and should be regenerated when convenient.
    draft email is written; it needs the production domain substituted in.
 2. Commission the Round 3 consequence narrative from an SME.
 3. Decide whether the walkthrough needs a passphrase gate before wider circulation.
-4. Regenerate `public/walkthrough.html` so it carries the fixed engine and rules.
 
 ---
 

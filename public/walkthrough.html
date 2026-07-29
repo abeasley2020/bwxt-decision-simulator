@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Operation Iron Horizon | Guided Walkthrough</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -83,7 +84,7 @@
   .fx .sc{color:#17153A;border-color:#B9B7D6;background:#EEEDF7}
   .fx .tr{color:#6B4E11;border-color:#E4C989;background:#FBF3E2}
 
-  /* ══ SIMULATOR SURFACE — fixed BWXT light design system, verbatim tokens ══ */
+  /* ══ SIMULATOR SURFACE: fixed BWXT light design system, verbatim tokens ══ */
   .sim{--navy:#17153A;--navy-dark:#0E0C27;--navy-light:#EEEDF7;--crimson:#9E3039;--crimson-bright:#C93147;
     --crimson-light:#F5E6E8;--bg:#F4F4F7;--border:#E0DFF0;--t1:#17153A;--t2:#5A5880;--t3:#9896B0;
     --ok:#1A6B4A;--warn:#92600A;
@@ -206,6 +207,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img,svg{max-width:100%}</style>
 </head>
 <body>
+
 <div class="bar" role="banner">
   <div class="brand">Iron Horizon<small>Guided walkthrough</small></div>
   <div class="mid" id="barMid"></div>
@@ -223,7 +225,7 @@
 <script>
 "use strict";
 /* ════════════════════════════════════════════════════════════════════════
-   AUTHORED CONTENT — transcribed verbatim from src/content/iron-horizon/
+   AUTHORED CONTENT: transcribed verbatim from src/content/iron-horizon/
    ════════════════════════════════════════════════════════════════════════ */
 const KPIS=[
  {k:"decision_velocity",l:"Decision Velocity",d:"Speed and decisiveness of leadership choices",s:60},
@@ -383,7 +385,7 @@ const PROFILES=[
  d:"Strong strategically and operationally, but consistently underweights people development and organizational capability. Execution suffers as talent gaps compound.",
  st:"Effective at strategic and operational decision-making. Can execute in the short term. Strong with structure, process, and financial metrics.",
  bs:"Chronically underinvests in talent, succession, and workforce readiness. Organization becomes brittle. Retention risk compounds over time.",
- rules:[{pr:60,kt:{talent_readiness:0},st:{enterprise_judgment:6,talent_leadership:0}}]},
+ rules:[{pr:60,st:{enterprise_judgment:6},sc:{talent_leadership:4}}]},
 {k:"strategic_communicator",l:"Strategic Communicator",
  d:"Creates clarity and alignment through exceptional communication. Moves the organization through narrative, trust, and shared direction.",
  st:"Strong communicator. Builds stakeholder trust rapidly. Effective at driving alignment across functions and levels. Creates followership.",
@@ -396,7 +398,7 @@ const PROFILES=[
  rules:[{pr:80,st:{technology_data_leadership:12},rt:["data_enabled_builder"],kt:{digital_maturity:60}}]}];
 
 /* ════════════════════════════════════════════════════════════════════════
-   ENGINE — direct port of src/engine/{kpi,scoring,effects,profiling}.ts
+   ENGINE: direct port of src/engine/{kpi,scoring,effects,profiling}.ts
    ════════════════════════════════════════════════════════════════════════ */
 const clamp=v=>Math.min(100,Math.max(0,v));
 function initKPIs(){const o={};KPIS.forEach(x=>o[x.k]=x.s);return o}
@@ -419,7 +421,7 @@ function applyRound(round,resp,kpis,scores){
   }
   return{K,S,T};
 }
-/* Profile assignment — priority-ordered, first match wins; fallback by top dimension */
+/* Profile assignment: priority-ordered, first match wins; fallback by top dimension */
 function ruleMatches(g,kpis,scores,traits){
   if(g.st)for(const k in g.st)if((scores[k]??0)<g.st[k])return false;
   if(g.sc)for(const k in g.sc)if((scores[k]??0)>g.sc[k])return false;
@@ -443,7 +445,7 @@ function assignProfile(kpis,scores,traits){
   for(const k in scores)if(scores[k]>tv){tv=scores[k];top=k}
   return{enterprise_judgment:"enterprise_catalyst",decision_velocity_with_discipline:"disciplined_accelerator",
     financial_strategic_acumen:"functional_optimizer",technology_data_leadership:"data_enabled_builder",
-    talent_leadership:"talent_blind_spot",communication_alignment:"strategic_communicator",
+    talent_leadership:"enterprise_catalyst",communication_alignment:"strategic_communicator",
     continuous_improvement_orientation:"cautious_operator"}[top]||"cautious_operator";
 }
 
@@ -485,7 +487,7 @@ function snapshots(){
   return{chain,K,S:Sc,T};
 }
 
-/* ── Synthetic faculty cohort (illustrative — no real participant data) ── */
+/* ── Synthetic faculty cohort (illustrative, no real participant data) ── */
 const COHORT_NAMES=["M. Alvarez","J. Whitfield","D. Okafor","S. Lindqvist","R. Patel","K. Donnelly","T. Nakamura","A. Brennan","L. Fontaine","C. Maddox","P. Iyer","G. Sokolov","B. Hastings","N. Ferreira","E. Calloway","V. Ashford","H. Delgado","O. Kirkland","W. Tanaka","F. Beaumont","I. Northrup","Y. Castellanos","U. Merriweather"];
 const COHORT_BASE_KPI={decision_velocity:68,safety_compliance_confidence:78,financial_performance_outlook:70,operational_throughput:72,talent_readiness:64,digital_maturity:58,cross_functional_alignment:69,executive_confidence:71};
 const COHORT_BASE_SCORE={enterprise_judgment:14,decision_velocity_with_discipline:9,financial_strategic_acumen:8,technology_data_leadership:9,talent_leadership:10,communication_alignment:10,continuous_improvement_orientation:4};
@@ -528,7 +530,7 @@ function kpiCards(vals,base){
 }
 function statusbar(pill,label,right){
   return `<div class="statusbar"><div class="in"><span class="pill">${esc(pill)}</span>
-    <span class="lbl">— ${esc(label)}</span>${right?`<span class="r">${esc(right)}</span>`:""}</div></div>`;
+    <span class="lbl">· ${esc(label)}</span>${right?`<span class="r">${esc(right)}</span>`:""}</div></div>`;
 }
 /* ════════════════════════════════════════════════════════════════════════
    SCREENS
@@ -556,26 +558,26 @@ function renderCover(){
     <div class="kick">For subject-matter experts &amp; instructional designers</div>
     <h1>What a participant actually experiences in Operation Iron Horizon</h1>
     <p class="lede">This is a faithful, fully playable walkthrough of the BWXT Enterprise Decision
-    Simulator — the same authored scenario content, the same screens, and the same deterministic
+    Simulator: the same authored scenario content, the same screens, and the same deterministic
     scoring engine as the real product. Nothing here requires a login, and nothing you do is recorded
     anywhere except this browser.</p>
     <div class="acts">
-      <div class="act"><b>Act I — The participant journey</b><p>Orientation → three decision rounds with
+      <div class="act"><b>Act I: The participant journey</b><p>Orientation → three decision rounds with
       consequence reveals → executive recommendation → performance dashboard. You make the choices;
       KPIs, leadership scores, and your final profile are computed by the real engine rules.</p></div>
-      <div class="act"><b>Act II — What faculty see</b><p>After you finish, step into the faculty view:
-      cohort completion, KPI averages, decision patterns, and profile distribution — with your own run
+      <div class="act"><b>Act II: What faculty see</b><p>After you finish, step into the faculty view:
+      cohort completion, KPI averages, decision patterns, and profile distribution, with your own run
       injected into an <i>illustrative</i> 24-person cohort so you can see how choices become insight.</p></div>
     </div>
     <ul class="tips">
       <li><b>✎ Designer notes</b> (top bar) overlays annotations explaining the mechanics behind each
-      screen — including the exact KPI / score effects authored on every option.</li>
+      screen, including the exact KPI / score effects authored on every option.</li>
       <li><b>Screens ▾</b> jumps anywhere. Skipped rounds are auto-filled with a neutral exemplar path
       so downstream screens always have data.</li>
       <li><b>↺ Restart</b> clears your choices. Progress is saved in this browser, mirroring the real
       product's resume behavior.</li>
     </ul>
-    ${note("The production app is Next.js + Supabase with magic-link auth and role-based access (participant / faculty / admin). This walkthrough is a single HTML file: the UI is re-created against the same design tokens, and the engine functions (<code>kpi.ts</code>, <code>scoring.ts</code>, <code>effects.ts</code>, <code>profiling.ts</code>) are ported line-for-line — they are pure functions with no framework dependencies, so outcomes here match production.","How this walkthrough was built")}
+    ${note("The production app is Next.js + Supabase with magic-link auth and role-based access (participant / faculty / admin). This walkthrough is a single HTML file: the UI is re-created against the same design tokens, and the engine functions (<code>kpi.ts</code>, <code>scoring.ts</code>, <code>effects.ts</code>, <code>profiling.ts</code>) are ported line-for-line: they are pure functions with no framework dependencies, so outcomes here match production.","How this walkthrough was built")}
   </div>`;
 }
 
@@ -585,13 +587,13 @@ function renderLogin(){
       <div class="card" style="padding:36px">
         <p class="eyebrow" style="margin:0 0 14px">BWXT Leadership Academy</p>
         <h1 class="serif" style="font-size:28px;font-weight:700;color:var(--navy);margin:0 0 6px">Enterprise Decision Simulator</h1>
-        <p style="font-size:14px;color:var(--t2);margin:0 0 24px;line-height:1.6">Sign in with the email address your cohort invitation was sent to. We'll email you a secure sign-in link — no password needed.</p>
+        <p style="font-size:14px;color:var(--t2);margin:0 0 24px;line-height:1.6">Sign in with the email address your cohort invitation was sent to. We'll email you a secure sign-in link; no password needed.</p>
         <label class="flabel" for="demo-email" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Work email</label>
         <input id="demo-email" type="email" value="participant@bwxt.com" readonly aria-readonly="true">
         <button class="btn" style="margin-top:16px" data-act="next">Send magic link</button>
         <p class="btn-hint">One-time link, valid for 15 minutes.</p>
       </div>
-      ${note("Authentication is <b>magic-link email</b> via Supabase — participants never set a password. Roles (participant, faculty, admin) are checked per page; participants land in the simulation, faculty and admins are redirected to their own dashboards. In this walkthrough the button simply continues — no email is sent.","Screen 1 · Sign in")}
+      ${note("Authentication is <b>magic-link email</b> via Supabase; participants never set a password. Roles (participant, faculty, admin) are checked per page; participants land in the simulation, faculty and admins are redirected to their own dashboards. In this walkthrough the button simply continues; no email is sent.","Screen 1 · Sign in")}
     </div>
   </div>`;
 }
@@ -629,7 +631,7 @@ function renderOrientation(){
           <p style="font-weight:600;font-size:15px;color:var(--navy);margin:0 0 6px">${c[1]}</p>
           <p style="font-size:13px;color:#6B7280;line-height:1.55;margin:0">${c[2]}</p></div>`).join("")}</div>
       </div>
-      ${note("Everything above is <b>authored scenario content</b> from <code>scenario.ts</code>, not UI copy — SMEs can revise the situation brief, the four challenge cards, and every decision without touching application code. The scenario is deterministic: no AI generates or alters content anywhere in the MVP.","Screen 2 · Orientation")}
+      ${note("Everything above is <b>authored scenario content</b> from <code>scenario.ts</code>, not UI copy. SMEs can revise the situation brief, the four challenge cards, and every decision without touching application code. The scenario is deterministic: no AI generates or alters content anywhere in the MVP.","Screen 2 · Orientation")}
     </div>
     <div class="wrap" style="padding-bottom:40px;display:grid;gap:40px;padding-top:24px">
       <section><h2 class="sec">Before You Begin</h2>
@@ -645,7 +647,7 @@ function renderOrientation(){
         <div class="grid2">${DIMS.map(d=>`<div class="card" style="padding:14px 16px">
           <div style="font-weight:600;font-size:14px;color:var(--navy);margin-bottom:4px">${esc(d.l)}</div>
           <div style="font-size:13px;color:var(--t2);line-height:1.45">${esc(d.d)}</div></div>`).join("")}</div>
-        ${note("Scores start at <b>0 in every dimension</b> and accumulate as points attached to chosen options. They are never shown to the participant during play — only on the final dashboard — so choices aren't gamed against a visible score.","Scoring model")}</section>
+        ${note("Scores start at <b>0 in every dimension</b> and accumulate as points attached to chosen options. They are never shown to the participant during play (only on the final dashboard), so choices aren't gamed against a visible score.","Scoring model")}</section>
       <section><h2 class="sec" style="margin-bottom:4px">Your Starting Position</h2>
         <p class="sub">These are the division's indicators when you take over. Your decisions will move them up or down.</p>
         ${kpiCards(k)}
@@ -669,7 +671,7 @@ function renderOrientation(){
             <p class="btn-hint">Your first decision begins immediately after you click this button.</p>
           </div>
         </div>
-        ${note("The self-assessment is stored on the simulation run and surfaced to faculty for calibration — it never affects scoring. In production the three ratings are required by native HTML validation; the free-text concern is optional and capped at 500 characters.","Self-assessment")}</section>
+        ${note("The self-assessment is stored on the simulation run and surfaced to faculty for calibration; it never affects scoring. In production the three ratings are required by native HTML validation; the free-text concern is optional and capped at 500 characters.","Self-assessment")}</section>
     </div></div>`;
 }
 
@@ -683,13 +685,13 @@ function renderRound(n){
       <section><div style="border-left:4px solid var(--navy);background:var(--navy-light);border-radius:0 12px 12px 0;padding:20px 24px">
         <div style="font-size:12px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Situation Update</div>
         <p class="serif" style="font-style:italic;font-size:16px;color:var(--navy);line-height:1.6;margin:0">${esc(R.event)}</p></div></section>
-      ${n===2?note("Round 2 is the <b>disruption round</b>: four simultaneous shocks (regulatory, competitive, talent, operational) that stress-test the direction set in Round 1. Note how several options trade one KPI against another — e.g. pushing delivery teams gains +10 Throughput but costs −8 Talent Readiness and −3 Talent Leadership score.","Round 2 design intent"):""}
+      ${n===2?note("Round 2 is the <b>disruption round</b>: four simultaneous shocks (regulatory, competitive, talent, operational) that stress-test the direction set in Round 1. Note how several options trade one KPI against another, e.g. pushing delivery teams gains +10 Throughput but costs −8 Talent Readiness and −3 Talent Leadership score.","Round 2 design intent"):""}
       ${n===3?note("Round 3 is the <b>AI inflection round</b> and carries most of the hidden-trait logic: choices here can tag the run with traits like <code>disciplined_innovator</code>, <code>innovation_without_guardrails</code>, or <code>data_enabled_builder</code>, which the profile rules use to separate governance-minded adopters from ungoverned ones.","Round 3 design intent"):""}
       <section><h2 class="sec" style="margin-bottom:20px">Your Decisions</h2>
         <div style="display:grid;gap:28px">
         ${R.decisions.map((dec,i)=>{
           const st=d[dec.k],err=rvErrors[dec.k];
-          const meta=dec.type==="multi"?(dec.min===dec.max?` — select ${dec.min}`:` — select ${dec.min}–${dec.max}`):"";
+          const meta=dec.type==="multi"?(dec.min===dec.max?` · select ${dec.min}`:` · select ${dec.min}–${dec.max}`):"";
           const typeLbl={single:"single select",multi:"multi select",alloc:"resource allocation"}[dec.type];
           let body="";
           if(dec.type==="alloc"){
@@ -721,7 +723,7 @@ function renderRound(n){
             ${body}${err?`<p class="err" role="alert">! ${esc(err)}</p>`:""}</section>`;
         }).join("")}
         </div>
-        ${note("With notes on, each option shows its <b>authored effect rules</b> — the exact KPI deltas (green/red), score points (navy), and hidden traits (amber) applied on selection. For the $20M allocation, effects scale linearly with the percentage: putting 50% into Safety &amp; Compliance yields half of its +15, i.e. +7.5. These chips are the walkthrough's annotation layer; participants never see them.","Effect rules — the scoring behind the options")}
+        ${note("With notes on, each option shows its <b>authored effect rules</b>: the exact KPI deltas (green/red), score points (navy), and hidden traits (amber) applied on selection. For the $20M allocation, effects scale linearly with the percentage: putting 50% into Safety &amp; Compliance yields half of its +15, i.e. +7.5. These chips are the walkthrough's annotation layer; participants never see them.","Effect rules: the scoring behind the options")}
         <p style="font-size:13px;color:var(--t3);margin:20px 0 8px"><span aria-hidden="true">*</span> Required</p>
         <button class="btn" data-act="submitRound" data-round="${n}">Submit Decisions</button>
         <p class="btn-hint">Your decisions are final once submitted and cannot be changed.</p>
@@ -740,7 +742,7 @@ function renderConseq(n){
     ${c?`
       <section><h2 class="sec">What Happened</h2>
         <div class="card" style="padding:24px">${c.n.map(p=>`<p style="font-size:15px;line-height:1.65;margin:0 0 12px">${esc(p)}</p>`).join("")}</div>
-        ${note("Consequence narratives are <b>pre-authored and identical for every participant</b> — they acknowledge the four decision areas without branching on specific choices. The individualized feedback is the KPI delta grid below. A future iteration could branch narrative text per selected option; the data model already stores each response.","Consequence design")}</section>
+        ${note("Consequence narratives are <b>pre-authored and identical for every participant</b>; they acknowledge the four decision areas without branching on specific choices. The individualized feedback is the KPI delta grid below. A future iteration could branch narrative text per selected option; the data model already stores each response.","Consequence design")}</section>
       <section><h2 class="sec">Stakeholder Reactions</h2>
         <div style="display:grid;gap:12px">${c.s.map(s=>`<div class="card" style="padding:20px"><div class="stake">
           <div class="av" aria-hidden="true">${esc(s[0][0])}</div><div>
@@ -748,11 +750,11 @@ function renderConseq(n){
           <p style="font-style:italic;font-size:15px;line-height:1.6;margin:6px 0 0">“${esc(s[2])}”</p>
           </div></div></div>`).join("")}</div></section>`
     :`<section><div class="card" style="padding:24px"><p style="font-size:15px;color:var(--t2);margin:0">Round ${n} has been submitted. Review your KPI changes below.</p></div>
-      ${note("<b>Content gap worth flagging:</b> the codebase authors consequence narratives for Rounds 1 and 2 only — <code>consequences.ts</code> has no Round 3 entry, so production falls back to this generic line after the AI Inflection round. If SMEs write a Round 3 narrative and stakeholder reactions (CEO, union leadership, CTO would be natural voices), it drops straight into the existing structure.","Round 3 consequence — missing narrative")}</section>`}
+      ${note("<b>Content gap worth flagging:</b> the codebase authors consequence narratives for Rounds 1 and 2 only: <code>consequences.ts</code> has no Round 3 entry, so production falls back to this generic line after the AI Inflection round. If SMEs write a Round 3 narrative and stakeholder reactions (CEO, union leadership, CTO would be natural voices), it drops straight into the existing structure.","Round 3 consequence: missing narrative")}</section>`}
       <section><h2 class="sec" style="margin-bottom:4px">KPI Changes</h2>
         <p class="sub">How your decisions moved the division's key performance indicators. Arrows and numbers indicate direction and magnitude of change.</p>
         ${kpiCards(after,before)}
-        ${note("Deltas are computed against the <b>previous checkpoint</b>, not the original baseline — Round 2's grid compares to Round 1's end-state. In production these come from <code>kpi_snapshots</code> rows (snapshot_type <code>initial</code> / <code>round_end</code>) written by the submit API; here they're recomputed live from your responses with the same functions.","Snapshot mechanics")}</section>
+        ${note("Deltas are computed against the <b>previous checkpoint</b>, not the original baseline: Round 2's grid compares to Round 1's end-state. In production these come from <code>kpi_snapshots</code> rows (snapshot_type <code>initial</code> / <code>round_end</code>) written by the submit API; here they're recomputed live from your responses with the same functions.","Snapshot mechanics")}</section>
       <div style="border-top:1px solid var(--border);padding-top:32px">
         <button class="btn" data-act="next">${n<3?"Continue to Round "+(n+1):"View Final Results"}</button>
       </div>
@@ -770,7 +772,7 @@ function renderRec(){
   return `<div class="sim">
     ${statusbar("Final Step","Executive Recommendation")}
     <div class="wrap" style="padding-top:32px;padding-bottom:40px">
-      <p style="font-size:15px;color:var(--t2);line-height:1.65;max-width:64ch">Your 90 days are complete. Before you see your results, brief the Board: five structured questions that become your executive recommendation. Faculty read these verbatim — this is the simulation's richest diagnostic artifact.</p>
+      <p style="font-size:15px;color:var(--t2);line-height:1.65;max-width:64ch">Your 90 days are complete. Before you see your results, brief the Board: five structured questions that become your executive recommendation. Faculty read these verbatim; this is the simulation's richest diagnostic artifact.</p>
       ${note("The five prompts mirror the scoring dimensions on purpose: strategy → Enterprise Judgment, the 90-day plan → Decision Velocity, risks → judgment under uncertainty, talent → Talent Leadership, communication → Communication &amp; Alignment. Responses are stored verbatim on the run and surfaced in the faculty participant drill-down and the printable report. They are <b>not machine-scored</b> in the MVP; the spec reserves AI-assisted writing feedback as a future augmentation layer.","Why free text, and who reads it")}
       <div style="display:grid;gap:24px;margin-top:24px">
       ${REC_FIELDS.map((f,i)=>`<div class="card" style="padding:24px">
@@ -808,7 +810,7 @@ function renderDashboard(){
             <div><h4 style="font-size:12px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px">Blind Spots</h4>
               <p style="font-size:15px;color:var(--t2);line-height:1.65;margin:0">${esc(prof.bs)}</p></div>
           </div></div>
-        ${note("Eight profiles, assigned by <b>priority-ordered rules</b> (first match wins): each rule can require score minimums, KPI thresholds, hidden traits, and dominance (named dimensions must average higher than the rest). If nothing matches, the fallback maps your single highest dimension to a profile. Your run carries trait(s): <i>"+(traits.length?traits.map(esc).join(", "):"none")+"</i>.<br><br><b>Implementation nuance worth knowing:</b> this walkthrough evaluates rules with your acquired traits, as the engine was designed. The production results page currently passes an <i>empty</i> trait list into the evaluator, so the four trait-gated profiles (Cautious Operator, Innovation Without Guardrails, Strategic Communicator, Data-Enabled Builder) can only be reached via the fallback there — a one-line fix, but until it lands, walkthrough and production can differ for trait-dependent runs.<br><br><b>Rule-authoring flag for SMEs:</b> the <i>Talent Blind Spot</i> rule sets its Talent Leadership requirement as a <i>minimum of 0</i> (always satisfied) rather than a <i>ceiling</i>, so it currently catches almost any run with Enterprise Judgment ≥ 6 that missed the five higher-priority profiles — including strongly people-first runs. The engine supports score ceilings; the rule likely intended one. Worth a review pass on all eight rule sets.","Profile assignment — how "+esc(prof.l)+" was chosen")}
+        ${note("Eight profiles, assigned by <b>priority-ordered rules</b> (first match wins): each rule can require score minimums, score ceilings, KPI thresholds, hidden traits, and dominance (named dimensions must average higher than the rest). If nothing matches, the fallback maps your single highest dimension to a profile. Your run carries trait(s): <i>"+(traits.length?traits.map(esc).join(", "):"none")+"</i>.<br><br><b>Update, 2026-07-22 (commit 995aa89):</b> two findings this walkthrough originally flagged are now fixed in the product. Profile assignment no longer receives an empty trait list; the engine re-derives hidden traits by replaying stored decisions. And the <i>Talent Blind Spot</i> rule, which used an always-satisfied minimum of 0 and caught nearly any run with Enterprise Judgment of 6 or more, now uses a ceiling of 4, so strongly people-first runs no longer land there. The fallback map was corrected as well: a top dimension of Talent Leadership now maps to Enterprise Catalyst instead of Talent Blind Spot. This walkthrough reflects the fixed engine.<br><br><b>Nuance for SMEs:</b> production assigns profiles from a simpler, trait-free rule set seeded in the database; this walkthrough evaluates the richer trait-gated rule set from the content layer. The two sets are intentionally different today, so a walkthrough profile can differ from a production profile for the same choices. Worth a review pass when the rule sets are unified.","Profile assignment: how "+esc(prof.l)+" was chosen")}
       </section>
       <section><h2 class="sec" style="margin-bottom:4px">Final KPI Values</h2>
         <p class="sub">Your division's indicators at simulation close. Net change shown versus your starting baseline.</p>
@@ -831,7 +833,7 @@ function renderDashboard(){
             <b style="font-size:15px;color:var(--navy);font-variant-numeric:tabular-nums">${v} pts</b></div>
             <div class="track" style="margin:8px 0" role="progressbar" aria-valuenow="${v}" aria-valuemin="0" aria-valuemax="${maxScore}" aria-label="${esc(d.l)}: ${v} points"><i class="cr" style="width:${pct}%"></i></div>
             <p style="font-size:13px;color:var(--t3);margin:0;line-height:1.45">${esc(d.d)}</p></div>`;}).join("")}</div>
-        ${note("Bars are scaled to your <b>highest dimension</b>, so this reads as a relative shape, not an absolute grade — deliberately, since raw point ceilings vary per dimension based on how many options feed it. Faculty see the same shape averaged across the cohort, which is how blind spots (e.g. a cohort-wide dip in Continuous Improvement) surface for the live session.","Reading the score bars")}</section>
+        ${note("Bars are scaled to your <b>highest dimension</b>, so this reads as a relative shape, not an absolute grade. Deliberately so, since raw point ceilings vary per dimension based on how many options feed it. Faculty see the same shape averaged across the cohort, which is how blind spots (e.g. a cohort-wide dip in Continuous Improvement) surface for the live session.","Reading the score bars")}</section>
       <div style="border-top:1px solid var(--border);padding-top:32px">
         <button class="btn" data-act="next">Continue to Completion</button></div>
     </div></div>`;
@@ -850,15 +852,15 @@ function renderComplete(){
       <div class="card" style="padding:24px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
         <div style="flex:1;min-width:220px"><b style="font-size:15px;color:var(--navy)">Performance Report</b>
         <p style="font-size:13px;color:var(--t2);margin:4px 0 0;line-height:1.55">Download a printable PDF of your profile, KPI trajectory, scores, and executive recommendation.</p></div>
-        <span style="background:var(--navy);color:#fff;font-weight:600;font-size:14px;border-radius:12px;padding:11px 22px;opacity:.55;cursor:not-allowed" title="Illustrative — the real app renders a print-ready report here">Download Report (PDF)</span>
+        <span style="background:var(--navy);color:#fff;font-weight:600;font-size:14px;border-radius:12px;padding:11px 22px;opacity:.55;cursor:not-allowed" title="Illustrative; the real app renders a print-ready report here">Download Report (PDF)</span>
       </div>
-      ${note("In production this button opens <code>/simulation/[runId]/report</code> — a print-optimized page (<code>ReportView.tsx</code>, shared by participant, faculty, and admin routes) that renders the same profile, trajectory table, score bars, and recommendation answers you just saw, plus the participant's name and cohort. Faculty can pull any participant's report from their drill-down view.","The printable report")}
-      ${note("This is the end of the participant journey. <b>Act II begins on the next screen:</b> you'll re-enter as faculty and find this very run — your choices, your profile — sitting inside the cohort view.","What's next in this walkthrough")}
-      <div style="margin-top:28px"><button class="btn" data-act="next">Continue to Act II — The Faculty View →</button></div>
+      ${note("In production this button opens <code>/simulation/[runId]/report</code>, a print-optimized page (<code>ReportView.tsx</code>, shared by participant, faculty, and admin routes) that renders the same profile, trajectory table, score bars, and recommendation answers you just saw, plus the participant's name and cohort. Faculty can pull any participant's report from their drill-down view.","The printable report")}
+      ${note("This is the end of the participant journey. <b>Act II begins on the next screen:</b> you'll re-enter as faculty and find this very run (your choices, your profile) sitting inside the cohort view.","What's next in this walkthrough")}
+      <div style="margin-top:28px"><button class="btn" data-act="next">Continue to Act II: The Faculty View →</button></div>
     </div></div>`;
 }
 
-/* ── Act II — faculty ── */
+/* ── Act II: faculty ── */
 function myRunSummary(){
   const done=!!(S.rounds[3]&&S.recDone);
   if(!done)return null;
@@ -884,10 +886,10 @@ function renderFacDash(){
   return `<div class="sim" style="min-height:calc(100vh - 130px)">${facnav(0)}
     <div class="wrapw" style="padding-top:32px;padding-bottom:40px;display:grid;gap:32px">
       <div><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-        <div><h1 style="font-size:24px;font-weight:700;color:var(--navy);margin:0 0 4px">Leadership Academy — Cohort 3</h1>
+        <div><h1 style="font-size:24px;font-weight:700;color:var(--navy);margin:0 0 4px">Leadership Academy, Cohort 3</h1>
         <p style="color:var(--t3);font-size:14px;margin:0">Academy: Oct 12 – Oct 15, 2026 · Simulation deadline Oct 2</p></div>
         <span style="background:#DCF3E6;color:#166534;font-size:12px;font-weight:600;padding:4px 12px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em">Active</span></div>
-      ${note("Faculty and admins never take the simulation from this surface — role checks route them here at sign-in. Everything on this page aggregates <b>completed runs only</b>. The 23 other participants are <b>synthetic</b> for this walkthrough; "+(me?"the 24th completed run is <b>you</b> — your numbers are blended into every average below.":"complete the participant journey (Act I) and your own run will appear in these numbers.")+"","Screen · Faculty dashboard")}</div>
+      ${note("Faculty and admins never take the simulation from this surface; role checks route them here at sign-in. Everything on this page aggregates <b>completed runs only</b>. The 23 other participants are <b>synthetic</b> for this walkthrough; "+(me?"the 24th completed run is <b>you</b>; your numbers are blended into every average below.":"complete the participant journey (Act I) and your own run will appear in these numbers.")+"","Screen · Faculty dashboard")}</div>
       <section><h2 class="sec">Completion Summary</h2>
         <div class="kgrid" style="margin-bottom:14px">${[["Total Participants",total,"var(--navy)"],["Completed",done,"var(--ok)"],["In Progress",inprog,"#1D4ED8"],["Not Started",notst,"var(--t3)"]].map(x=>`
           <div class="kcard"><div class="kl">${x[0]}</div><div class="kv" style="color:${x[2]}">${x[1]}</div></div>`).join("")}</div>
@@ -901,12 +903,12 @@ function renderFacDash(){
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><b style="font-size:14px">${esc(k.l)}</b><b style="font-size:17px;color:var(--navy);font-variant-numeric:tabular-nums">${kavg[k.k]}</b></div>
           <div class="track" style="height:8px" role="progressbar" aria-valuenow="${kavg[k.k]}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(k.l)} cohort average: ${kavg[k.k]} out of 100"><i style="width:${kavg[k.k]}%;background:#3B4CC0"></i></div></div>`).join("")}</div></section>
       <section><h2 class="sec" style="margin-bottom:4px">Score Averages</h2>
-        <p class="sub">Average leadership-dimension points across completed runs — the cohort's collective shape.</p>
+        <p class="sub">Average leadership-dimension points across completed runs: the cohort's collective shape.</p>
         <div class="card">${DIMS.map((d,i)=>`<div style="padding:14px 20px;${i?"border-top:1px solid var(--border)":""}">
           <div style="display:flex;justify-content:space-between"><b style="font-size:14px;color:var(--navy)">${esc(d.l)}</b><b style="font-size:14px;color:var(--navy);font-variant-numeric:tabular-nums">${savg[d.k]} pts</b></div>
           <div class="track" style="margin-top:7px" role="progressbar" aria-valuenow="${savg[d.k]}" aria-valuemin="0" aria-valuemax="${maxS}" aria-label="${esc(d.l)} average: ${savg[d.k]} points"><i class="cr" style="width:${Math.round(savg[d.k]/maxS*100)}%"></i></div></div>`).join("")}
         </div>
-        ${note("This shape is the faculty payoff: dips are <b>cohort blind spots</b> to design the live academy around. In this illustrative cohort, Continuous Improvement Orientation trails the field — a facilitator would build a session block on learning loops and after-action reviews.","Reading the cohort shape")}</section>
+        ${note("This shape is the faculty payoff: dips are <b>cohort blind spots</b> to design the live academy around. In this illustrative cohort, Continuous Improvement Orientation trails the field; a facilitator would build a session block on learning loops and after-action reviews.","Reading the cohort shape")}</section>
       <section><h2 class="sec" style="margin-bottom:4px">Leadership Profile Distribution</h2>
         <p class="sub">How completed participants distribute across the eight profiles.</p>
         <div class="card" style="padding:20px;display:grid;gap:10px">${distArr.map(x=>{
@@ -924,8 +926,8 @@ function renderFacPatterns(){
     <div class="wrapw" style="padding-top:32px;padding-bottom:40px;display:grid;gap:28px">
       <div><h1 style="font-size:24px;font-weight:700;color:var(--navy);margin:0 0 4px">Decision Patterns</h1>
       <p style="color:var(--t2);font-size:14px;margin:0;max-width:70ch">How the cohort split on each of the twelve decisions. Your own selections are tagged. Counts are illustrative.</p>
-      ${note("This is where SMEs see the diagnostic value of option design: a decision where 80% of a cohort converges tells faculty something different from a 40/35/25 split. Contested decisions become live-session debate material; lopsided ones either reveal a shared blind spot — or an option set that needs rebalancing.","Why decision patterns matter")}</div>
-      ${ROUNDS.map(R=>`<section><h2 class="sec">Round ${R.n} — ${esc(R.title)}</h2>
+      ${note("This is where SMEs see the diagnostic value of option design: a decision where 80% of a cohort converges tells faculty something different from a 40/35/25 split. Contested decisions become live-session debate material; lopsided ones either reveal a shared blind spot, or an option set that needs rebalancing.","Why decision patterns matter")}</div>
+      ${ROUNDS.map(R=>`<section><h2 class="sec">Round ${R.n}: ${esc(R.title)}</h2>
         <div style="display:grid;gap:16px">${R.decisions.map(dec=>{
           const my=S.rounds[R.n]?S.rounds[R.n][dec.k]:null;
           if(dec.type==="alloc"){
@@ -964,13 +966,13 @@ function renderFacParticipants(){
     rows.push({nm,status,prof:prof?PROFILES.find(p=>p.k===prof).l:"—",me:false});
   });
   const myStatus=me?"Completed":(S.rounds[1]?"In Progress":"Not Started");
-  rows.unshift({nm:"You — Walkthrough Reviewer",status:myStatus,prof:me?me.profile.l:"—",me:true});
+  rows.unshift({nm:"You (Walkthrough Reviewer)",status:myStatus,prof:me?me.profile.l:"—",me:true});
   return `<div class="sim" style="min-height:calc(100vh - 130px)">${facnav(1)}
     <div class="wrapw" style="padding-top:32px;padding-bottom:40px;display:grid;gap:24px">
       <div><h1 style="font-size:24px;font-weight:700;color:var(--navy);margin:0 0 4px">Participants</h1>
-      <p style="color:var(--t2);font-size:14px;margin:0">24 members · Leadership Academy — Cohort 3</p></div>
+      <p style="color:var(--t2);font-size:14px;margin:0">24 members · Leadership Academy, Cohort 3</p></div>
       ${me?`<div class="card" style="padding:24px;border-left:4px solid var(--crimson)">
-        <div class="eyebrow" style="letter-spacing:.06em;margin-bottom:8px">Your drill-down — what faculty see for one participant</div>
+        <div class="eyebrow" style="letter-spacing:.06em;margin-bottom:8px">Your drill-down: what faculty see for one participant</div>
         <div class="grid2" style="gap:20px">
           <div><b style="font-size:15px;color:var(--navy)">Profile: ${esc(me.profile.l)}</b>
             <p style="font-size:13.5px;color:var(--t2);line-height:1.6;margin:6px 0 0">${esc(me.profile.d)}</p></div>
@@ -988,7 +990,7 @@ function renderFacParticipants(){
           <td style="font-weight:500"><span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;${r.status==="Completed"?"background:#DCF3E6;color:#166534":r.status==="In Progress"?"background:#E0EAFF;color:#1D4ED8":"background:#F0F0F5;color:#6B7280"}">${r.status}</span></td>
           <td style="font-weight:500">${esc(r.prof)}</td>
           <td style="font-weight:500;color:var(--t3)">${r.status==="Completed"?"View · PDF":"—"}</td></tr>`).join("")}</tbody></table></div>
-      ${note("In production each row links to a participant detail page — KPI trajectory, all twelve selections with rationale, recommendation answers, and the printable report. The 23 names here are fabricated; only the highlighted row is real (it's your walkthrough run). <b>End of walkthrough.</b> Use <b>Screens ▾</b> to revisit anything, or ↺ Restart to play a different leadership style and watch your profile change.","Participant drill-down · end of tour")}
+      ${note("In production each row links to a participant detail page: KPI trajectory, all twelve selections with rationale, recommendation answers, and the printable report. The 23 names here are fabricated; only the highlighted row is real (it's your walkthrough run). <b>End of walkthrough.</b> Use <b>Screens ▾</b> to revisit anything, or ↺ Restart to play a different leadership style and watch your profile change.","Participant drill-down · end of tour")}
     </div></div>`;
 }
 
@@ -999,18 +1001,18 @@ const SCREENS=[
  {t:"Welcome",act:"Start",render:renderCover,need:0},
  {t:"Sign in (magic link)",act:"Act I · Participant",render:renderLogin,need:0},
  {t:"Orientation & self-assessment",act:"Act I · Participant",render:renderOrientation,need:0},
- {t:"Round 1 — Set Direction",act:"Act I · Participant",render:()=>renderRound(1),need:0},
- {t:"Round 1 — Consequences",act:"Act I · Participant",render:()=>renderConseq(1),need:1},
- {t:"Round 2 — Disruption",act:"Act I · Participant",render:()=>renderRound(2),need:1},
- {t:"Round 2 — Consequences",act:"Act I · Participant",render:()=>renderConseq(2),need:2},
- {t:"Round 3 — AI Inflection",act:"Act I · Participant",render:()=>renderRound(3),need:2},
- {t:"Round 3 — Consequences",act:"Act I · Participant",render:()=>renderConseq(3),need:3},
+ {t:"Round 1: Set Direction",act:"Act I · Participant",render:()=>renderRound(1),need:0},
+ {t:"Round 1: Consequences",act:"Act I · Participant",render:()=>renderConseq(1),need:1},
+ {t:"Round 2: Disruption",act:"Act I · Participant",render:()=>renderRound(2),need:1},
+ {t:"Round 2: Consequences",act:"Act I · Participant",render:()=>renderConseq(2),need:2},
+ {t:"Round 3: AI Inflection",act:"Act I · Participant",render:()=>renderRound(3),need:2},
+ {t:"Round 3: Consequences",act:"Act I · Participant",render:()=>renderConseq(3),need:3},
  {t:"Executive Recommendation",act:"Act I · Participant",render:renderRec,need:3},
  {t:"Performance Dashboard",act:"Act I · Participant",render:renderDashboard,need:3},
  {t:"Completion",act:"Act I · Participant",render:renderComplete,need:3,needRec:true},
- {t:"Faculty — Cohort Dashboard",act:"Act II · Faculty",render:renderFacDash,need:0},
- {t:"Faculty — Participants",act:"Act II · Faculty",render:renderFacParticipants,need:0},
- {t:"Faculty — Decision Patterns",act:"Act II · Faculty",render:renderFacPatterns,need:0}];
+ {t:"Faculty: Cohort Dashboard",act:"Act II · Faculty",render:renderFacDash,need:0},
+ {t:"Faculty: Participants",act:"Act II · Faculty",render:renderFacParticipants,need:0},
+ {t:"Faculty: Decision Patterns",act:"Act II · Faculty",render:renderFacPatterns,need:0}];
 
 const stage=document.getElementById("stage"),barMid=document.getElementById("barMid"),
   drawer=document.getElementById("drawer"),prevBtn=document.getElementById("prevBtn"),
@@ -1048,7 +1050,7 @@ function render(){
   if(usedExemplar){
     html=`<div style="max-width:880px;margin:14px auto -6px;padding:0 24px">
       <div style="background:var(--c-note-bg);border:1px solid var(--c-note-line);color:var(--c-note-fg);border-radius:10px;padding:10px 14px;font-size:13px">
-      ↷ You jumped ahead — skipped rounds were auto-filled with a neutral <b>exemplar path</b> so this screen has data. Use ↺ Restart to play them yourself.</div></div>`+html;
+      ↷ You jumped ahead; skipped rounds were auto-filled with a neutral <b>exemplar path</b> so this screen has data. Use ↺ Restart to play them yourself.</div></div>`+html;
   }
   stage.innerHTML=html;
   prevBtn.disabled=i===0;
