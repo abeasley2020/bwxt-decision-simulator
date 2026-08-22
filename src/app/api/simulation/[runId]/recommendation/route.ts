@@ -17,6 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logQueryError } from "@/lib/errors";
 
 interface RecommendationBody {
   prioritizedStrategy: string;
@@ -47,21 +48,34 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: publicUser } = await supabase
+  const { data: publicUser, error: publicUserError } = await supabase
     .from("users")
     .select("id")
     .eq("email", user.email!)
     .maybeSingle();
+
+  if (logQueryError("users lookup by email", publicUserError)) {
+    return NextResponse.json(
+      { error: "Could not load your account. Please try again." },
+      { status: 500 }
+    );
+  }
   const userId = publicUser?.id ?? user.id;
 
   // Verify run ownership and eligibility
-  const { data: run } = await supabase
+  const { data: run, error: runLookupError } = await supabase
     .from("simulation_runs")
     .select("id, status, current_round_number, user_id")
     .eq("id", params.runId)
     .eq("user_id", userId)
     .maybeSingle();
 
+  if (logQueryError("simulation_runs lookup", runLookupError)) {
+    return NextResponse.json(
+      { error: "Could not load your simulation run. Please try again." },
+      { status: 500 }
+    );
+  }
   if (!run) {
     return NextResponse.json({ error: "Run not found" }, { status: 404 });
   }
@@ -136,8 +150,17 @@ export async function POST(
     })
     .eq("id", params.runId);
 
+  // A run left in_progress after the recommendation is stored looks unfinished
+  // to faculty and admin surfaces, so surface the failure to the participant.
   if (runError) {
-    console.error("Failed to mark run as completed:", runError.message);
+    logQueryError("simulation_runs completion update", runError);
+    return NextResponse.json(
+      {
+        error:
+          "Your recommendation was saved but the simulation could not be marked complete. Please refresh and try again.",
+      },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({

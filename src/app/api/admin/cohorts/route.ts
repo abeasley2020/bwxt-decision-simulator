@@ -4,13 +4,22 @@
  * Creates a new cohort with status = 'draft'.
  * Accepts multipart/form-data (standard HTML form POST).
  * On success: redirects (303) to /admin/cohorts/[cohortId].
- * On error: redirects back to /admin/cohorts/new.
+ * On error: redirects back to /admin/cohorts/new?error=<code>, which the form
+ * page renders as an alert.
  *
  * Auth: admin role required.
  */
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logQueryError } from "@/lib/errors";
+
+function backToForm(errorCode: string) {
+  return new Response(null, {
+    status: 303,
+    headers: { Location: `/admin/cohorts/new?error=${errorCode}` },
+  });
+}
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -25,11 +34,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: userRow } = await supabase
+  const { data: userRow, error: userRowError } = await supabase
     .from("users")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
+
+  if (logQueryError("users role lookup", userRowError)) {
+    return NextResponse.json(
+      { error: "Could not verify your permissions. Please try again." },
+      { status: 500 }
+    );
+  }
 
   if (!userRow || userRow.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -40,11 +56,9 @@ export async function POST(request: Request) {
   let formData: FormData;
   try {
     formData = await request.formData();
-  } catch {
-    return new Response(null, {
-      status: 303,
-      headers: { Location: "/admin/cohorts/new" },
-    });
+  } catch (cause) {
+    console.error("[admin/cohorts] form body unreadable:", cause);
+    return backToForm("invalid_form");
   }
 
   const name = formData.get("name")?.toString().trim();
@@ -55,10 +69,7 @@ export async function POST(request: Request) {
   const scenario_version_id = formData.get("scenario_version_id")?.toString();
 
   if (!name || !scenario_version_id) {
-    return new Response(null, {
-      status: 303,
-      headers: { Location: "/admin/cohorts/new" },
-    });
+    return backToForm("missing_fields");
   }
 
   // ── Insert ──────────────────────────────────────────────────────────────────
@@ -80,11 +91,8 @@ export async function POST(request: Request) {
     .single();
 
   if (error || !cohort) {
-    console.error("Failed to create cohort:", error?.message);
-    return new Response(null, {
-      status: 303,
-      headers: { Location: "/admin/cohorts/new" },
-    });
+    logQueryError("cohorts insert", error);
+    return backToForm("save_failed");
   }
 
   return new Response(null, {

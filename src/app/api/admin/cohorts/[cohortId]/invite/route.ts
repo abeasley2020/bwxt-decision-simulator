@@ -17,6 +17,7 @@
 import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
+import { logQueryError } from "@/lib/errors";
 
 // Service-role client — bypasses RLS for all DB writes.
 // Only used server-side; never exposed to the browser.
@@ -42,11 +43,18 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: callerRow } = await supabaseAdmin
+  const { data: callerRow, error: callerRowError } = await supabaseAdmin
     .from("users")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
+
+  if (logQueryError("[invite] caller role lookup", callerRowError)) {
+    return NextResponse.json(
+      { error: "Could not verify your permissions. Please try again." },
+      { status: 500 }
+    );
+  }
 
   if (!callerRow || callerRow.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -75,9 +83,20 @@ export async function POST(
   // ── STEP 1 — Find or create auth user ───────────────────────────────────────
   console.log(`[invite] Step 1: looking up auth user for ${email}`);
 
-  const {
-    data: { users: authUsers },
-  } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+  // An unchecked failure here reads as "no account exists" and makes the next
+  // step try to create a duplicate auth user.
+  const { data: authUserList, error: listUsersError } =
+    await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+
+  if (listUsersError) {
+    console.error(`[invite] Step 1 FAILED: ${listUsersError.message}`);
+    return NextResponse.json(
+      { error: "Could not look up existing accounts. Please try again." },
+      { status: 500 }
+    );
+  }
+
+  const authUsers = authUserList.users;
 
   // Compare lowercased on both sides — Supabase Auth stores normalised emails
   // but defensive lowercasing prevents lookup misses if anything upstream
@@ -110,11 +129,19 @@ export async function POST(
 
   // Use ilike for the lookup so a row stored with stray capitalisation still
   // matches and we don't end up creating a duplicate.
-  const { data: publicUser } = await supabaseAdmin
+  const { data: publicUser, error: publicUserError } = await supabaseAdmin
     .from("users")
     .select("id, email, first_name, last_name")
     .ilike("email", email)
     .maybeSingle();
+
+  // Treating a failed lookup as "no record" would insert a duplicate user row.
+  if (logQueryError("[invite] public.users lookup", publicUserError)) {
+    return NextResponse.json(
+      { error: "Could not look up the user record. Please try again." },
+      { status: 500 }
+    );
+  }
 
   if (!publicUser) {
     console.log(`[invite] Step 2: no public.users record — creating`);
@@ -167,12 +194,22 @@ export async function POST(
   // ── STEP 3 — Check for existing membership, then insert ─────────────────────
   console.log(`[invite] Step 3: checking cohort membership`);
 
-  const { data: existingMembership } = await supabaseAdmin
-    .from("cohort_memberships")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("cohort_id", cohortId)
-    .maybeSingle();
+  const { data: existingMembership, error: existingMembershipError } =
+    await supabaseAdmin
+      .from("cohort_memberships")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("cohort_id", cohortId)
+      .maybeSingle();
+
+  if (
+    logQueryError("[invite] cohort_memberships lookup", existingMembershipError)
+  ) {
+    return NextResponse.json(
+      { error: "Could not check cohort membership. Please try again." },
+      { status: 500 }
+    );
+  }
 
   if (existingMembership) {
     console.log(`[invite] Step 3: user already a member`);
@@ -204,37 +241,62 @@ export async function POST(
   if (role === "participant") {
     console.log(`[invite] Step 4: checking simulation run`);
 
-    const { data: existingRun } = await supabaseAdmin
+    const { data: existingRun, error: existingRunError } = await supabaseAdmin
       .from("simulation_runs")
       .select("id")
       .eq("user_id", userId)
       .eq("cohort_id", cohortId)
       .maybeSingle();
 
+    if (logQueryError("[invite] simulation_runs lookup", existingRunError)) {
+      return NextResponse.json(
+        { error: "Could not check for an existing simulation run." },
+        { status: 500 }
+      );
+    }
+
     if (!existingRun) {
-      const { data: cohort } = await supabaseAdmin
+      const { data: cohort, error: cohortError } = await supabaseAdmin
         .from("cohorts")
         .select("scenario_version_id")
         .eq("id", cohortId)
         .maybeSingle();
 
-      if (cohort?.scenario_version_id) {
-        const { error: runError } = await supabaseAdmin
-          .from("simulation_runs")
-          .insert({
-            user_id: userId,
-            cohort_id: cohortId,
-            scenario_version_id: cohort.scenario_version_id,
-            status: "not_started",
-            current_round_number: 1,
-            is_preview: false,
-          });
-        if (runError) {
-          console.error(`[invite] Step 4 FAILED: ${runError.message}`);
-          return NextResponse.json({ error: runError.message }, { status: 500 });
-        }
-        console.log(`[invite] Step 4: created simulation run`);
+      if (logQueryError("[invite] cohorts lookup", cohortError)) {
+        return NextResponse.json(
+          { error: "Could not load the cohort scenario. Please try again." },
+          { status: 500 }
+        );
       }
+
+      // Reporting success without a run would leave the participant with
+      // nothing to open when they sign in.
+      if (!cohort?.scenario_version_id) {
+        console.error(`[invite] Step 4 FAILED: cohort has no scenario version`);
+        return NextResponse.json(
+          {
+            error:
+              "This cohort has no scenario version, so no simulation run could be created.",
+          },
+          { status: 500 }
+        );
+      }
+
+      const { error: runError } = await supabaseAdmin
+        .from("simulation_runs")
+        .insert({
+          user_id: userId,
+          cohort_id: cohortId,
+          scenario_version_id: cohort.scenario_version_id,
+          status: "not_started",
+          current_round_number: 1,
+          is_preview: false,
+        });
+      if (runError) {
+        console.error(`[invite] Step 4 FAILED: ${runError.message}`);
+        return NextResponse.json({ error: runError.message }, { status: 500 });
+      }
+      console.log(`[invite] Step 4: created simulation run`);
     } else {
       console.log(`[invite] Step 4: simulation run already exists`);
     }

@@ -117,15 +117,17 @@ export default function RecommendationForm({ runId }: Props) {
       });
 
       if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
         setSubmitError(body.error ?? "Submission failed. Please try again.");
         return;
       }
 
       const body = (await res.json()) as { redirectTo?: string };
-      if (body.redirectTo) {
-        router.push(body.redirectTo);
+      if (!body.redirectTo) {
+        setSubmitError("Submission failed. Please try again.");
+        return;
       }
+      router.push(body.redirectTo);
     } catch {
       setSubmitError("A network error occurred. Please try again.");
     } finally {

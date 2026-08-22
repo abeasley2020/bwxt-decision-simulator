@@ -14,8 +14,13 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import FormErrorAlert from "@/components/admin/FormErrorAlert";
 
-export default async function NewCohortPage() {
+export default async function NewCohortPage({
+  searchParams,
+}: {
+  searchParams: { error?: string };
+}) {
   const supabase = createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
@@ -74,6 +79,8 @@ export default async function NewCohortPage() {
           Create New Cohort
         </h1>
       </div>
+
+      <FormErrorAlert code={searchParams.error} />
 
       {/* ── Form ────────────────────────────────────────────────────────── */}
       <div className="bg-white border border-gray-200 rounded-xl p-6">

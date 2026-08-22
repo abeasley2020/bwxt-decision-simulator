@@ -4,7 +4,8 @@
  * Updates an existing cohort's editable fields.
  * Accepts multipart/form-data (standard HTML form POST from the edit page).
  * On success: redirects (303) to /admin/cohorts/[cohortId].
- * On error: redirects back to the edit page.
+ * On error: redirects back to the edit page with an ?error=<code> the page
+ * renders as an alert.
  *
  * Auth: admin role required.
  *
@@ -15,6 +16,14 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logQueryError } from "@/lib/errors";
+
+function backToForm(cohortId: string, errorCode: string) {
+  return new Response(null, {
+    status: 303,
+    headers: { Location: `/admin/cohorts/${cohortId}/edit?error=${errorCode}` },
+  });
+}
 
 export async function POST(
   request: Request,
@@ -32,11 +41,18 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: userRow } = await supabase
+  const { data: userRow, error: userRowError } = await supabase
     .from("users")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
+
+  if (logQueryError("users role lookup", userRowError)) {
+    return NextResponse.json(
+      { error: "Could not verify your permissions. Please try again." },
+      { status: 500 }
+    );
+  }
 
   if (!userRow || userRow.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -47,11 +63,9 @@ export async function POST(
   let formData: FormData;
   try {
     formData = await request.formData();
-  } catch {
-    return new Response(null, {
-      status: 303,
-      headers: { Location: `/admin/cohorts/${params.cohortId}/edit` },
-    });
+  } catch (cause) {
+    console.error("[admin/cohorts] form body unreadable:", cause);
+    return backToForm(params.cohortId, "invalid_form");
   }
 
   const name = formData.get("name")?.toString().trim();
@@ -62,10 +76,7 @@ export async function POST(
   const statusValue = formData.get("status")?.toString();
 
   if (!name) {
-    return new Response(null, {
-      status: 303,
-      headers: { Location: `/admin/cohorts/${params.cohortId}/edit` },
-    });
+    return backToForm(params.cohortId, "missing_fields");
   }
 
   const validStatuses = ["draft", "active", "closed"];
@@ -92,11 +103,8 @@ export async function POST(
     .eq("id", params.cohortId);
 
   if (error) {
-    console.error("Failed to update cohort:", error.message);
-    return new Response(null, {
-      status: 303,
-      headers: { Location: `/admin/cohorts/${params.cohortId}/edit` },
-    });
+    logQueryError("cohorts update", error);
+    return backToForm(params.cohortId, "save_failed");
   }
 
   return new Response(null, {

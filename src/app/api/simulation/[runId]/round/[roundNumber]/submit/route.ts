@@ -19,6 +19,7 @@ import {
 import { buildInitialKPIs } from "@/engine/kpi";
 import { buildInitialScores } from "@/engine/scoring";
 import type { DecisionResponse, KPIValues, ScoreValues } from "@/engine/types";
+import { logQueryError } from "@/lib/errors";
 
 // ─── Request body shape ────────────────────────────────────────────────────────
 
@@ -48,11 +49,18 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: publicUser } = await supabase
+  const { data: publicUser, error: publicUserError } = await supabase
     .from("users")
     .select("id")
     .eq("email", user.email!)
     .maybeSingle();
+
+  if (logQueryError("users lookup by email", publicUserError)) {
+    return NextResponse.json(
+      { error: "Could not load your account. Please try again." },
+      { status: 500 }
+    );
+  }
   const userId = publicUser?.id ?? user.id;
 
   const roundNumber = parseInt(params.roundNumber, 10);
@@ -61,13 +69,19 @@ export async function POST(
   }
 
   // Verify run ownership and state
-  const { data: run } = await supabase
+  const { data: run, error: runError } = await supabase
     .from("simulation_runs")
     .select("id, status, current_round_number, user_id, scenario_version_id")
     .eq("id", params.runId)
     .eq("user_id", userId)
     .maybeSingle();
 
+  if (logQueryError("simulation_runs lookup", runError)) {
+    return NextResponse.json(
+      { error: "Could not load your simulation run. Please try again." },
+      { status: 500 }
+    );
+  }
   if (!run) {
     return NextResponse.json({ error: "Run not found" }, { status: 404 });
   }
@@ -180,13 +194,19 @@ export async function POST(
 
   // ─── Look up DB IDs ─────────────────────────────────────────────────────────
 
-  const { data: scenarioRound } = await supabase
+  const { data: scenarioRound, error: scenarioRoundError } = await supabase
     .from("scenario_rounds")
     .select("id")
     .eq("scenario_version_id", run.scenario_version_id)
     .eq("round_number", roundNumber)
     .maybeSingle();
 
+  if (logQueryError("scenario_rounds lookup", scenarioRoundError)) {
+    return NextResponse.json(
+      { error: "Could not load the scenario for this round. Please try again." },
+      { status: 500 }
+    );
+  }
   if (!scenarioRound) {
     return NextResponse.json(
       {
@@ -197,14 +217,33 @@ export async function POST(
     );
   }
 
-  const { data: dbTemplates } = await supabase
+  const { data: dbTemplates, error: dbTemplatesError } = await supabase
     .from("decision_templates")
     .select("id, key")
     .eq("scenario_round_id", scenarioRound.id);
 
+  if (logQueryError("decision_templates lookup", dbTemplatesError)) {
+    return NextResponse.json(
+      { error: "Could not load decision templates. Please try again." },
+      { status: 500 }
+    );
+  }
+
   const templateIdMap = new Map(
     (dbTemplates ?? []).map((t) => [t.key, t.id])
   );
+
+  const unmappedDecision = body.responses.find(
+    (r) => !templateIdMap.has(r.decisionKey)
+  );
+  if (unmappedDecision) {
+    return NextResponse.json(
+      {
+        error: `Decision "${unmappedDecision.decisionKey}" is missing from the database. Ensure seed.sql has been applied.`,
+      },
+      { status: 500 }
+    );
+  }
 
   // ─── Load baseline KPIs and scores ───────────────────────────────────────────
   // Round 1: start from initial snapshot.
@@ -214,12 +253,19 @@ export async function POST(
   let baselineScores: ScoreValues;
 
   if (roundNumber === 1) {
-    const { data: initialSnapshot } = await supabase
+    const { data: initialSnapshot, error: initialSnapshotError } = await supabase
       .from("kpi_snapshots")
       .select("kpi_values_json")
       .eq("simulation_run_id", run.id)
       .eq("snapshot_type", "initial")
       .maybeSingle();
+
+    if (logQueryError("initial kpi_snapshots lookup", initialSnapshotError)) {
+      return NextResponse.json(
+        { error: "Could not load your starting KPIs. Please try again." },
+        { status: 500 }
+      );
+    }
     baselineKPIs = (initialSnapshot?.kpi_values_json ?? buildInitialKPIs()) as KPIValues;
     baselineScores = buildInitialScores();
   } else {
@@ -241,6 +287,18 @@ export async function POST(
         .limit(1)
         .maybeSingle(),
     ]);
+
+    // A failed baseline read would silently reset the run to starting values
+    // and corrupt every later round, so refuse rather than guess.
+    if (
+      logQueryError("previous kpi_snapshots lookup", prevKPISnap.error) ||
+      logQueryError("previous score_snapshots lookup", prevScoreSnap.error)
+    ) {
+      return NextResponse.json(
+        { error: "Could not load your previous round results. Please try again." },
+        { status: 500 }
+      );
+    }
     baselineKPIs = (prevKPISnap.data?.kpi_values_json ?? buildInitialKPIs()) as KPIValues;
     baselineScores = (prevScoreSnap.data?.score_values_json ?? buildInitialScores()) as ScoreValues;
   }
@@ -277,6 +335,34 @@ export async function POST(
     responded_at: now,
   }));
 
+  // The four writes below are not transactional. If a later one fails, the
+  // earlier rows are removed so the participant can resubmit the round
+  // instead of continuing from a half-written state.
+  const rollbackRound = async () => {
+    const { error } = await supabase
+      .from("decision_responses")
+      .delete()
+      .eq("simulation_run_id", params.runId)
+      .eq("scenario_round_id", scenarioRound.id);
+    logQueryError("decision_responses rollback", error);
+
+    const { error: kpiRollbackError } = await supabase
+      .from("kpi_snapshots")
+      .delete()
+      .eq("simulation_run_id", params.runId)
+      .eq("scenario_round_id", scenarioRound.id)
+      .eq("snapshot_type", "round_end");
+    logQueryError("kpi_snapshots rollback", kpiRollbackError);
+
+    const { error: scoreRollbackError } = await supabase
+      .from("score_snapshots")
+      .delete()
+      .eq("simulation_run_id", params.runId)
+      .eq("scenario_round_id", scenarioRound.id)
+      .eq("snapshot_type", "round_end");
+    logQueryError("score_snapshots rollback", scoreRollbackError);
+  };
+
   const { error: responseError } = await supabase
     .from("decision_responses")
     .insert(responseRows);
@@ -305,7 +391,12 @@ export async function POST(
   });
 
   if (kpiError) {
-    console.error("Failed to save KPI snapshot:", kpiError.message);
+    logQueryError("kpi_snapshots insert", kpiError);
+    await rollbackRound();
+    return NextResponse.json(
+      { error: "Could not save your round results. Please submit again." },
+      { status: 500 }
+    );
   }
 
   // ─── Save score snapshot (round_end) ─────────────────────────────────────────
@@ -319,18 +410,32 @@ export async function POST(
   });
 
   if (scoreError) {
-    console.error("Failed to save score snapshot:", scoreError.message);
+    logQueryError("score_snapshots insert", scoreError);
+    await rollbackRound();
+    return NextResponse.json(
+      { error: "Could not save your round results. Please submit again." },
+      { status: 500 }
+    );
   }
 
   // ─── Advance simulation run ──────────────────────────────────────────────────
 
-  await supabase
+  const { error: advanceError } = await supabase
     .from("simulation_runs")
     .update({
       current_round_number: roundNumber + 1,
       last_active_at: now,
     })
     .eq("id", params.runId);
+
+  if (advanceError) {
+    logQueryError("simulation_runs advance", advanceError);
+    await rollbackRound();
+    return NextResponse.json(
+      { error: "Could not advance to the next round. Please submit again." },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({
     redirectTo: `/simulation/${params.runId}/round/${roundNumber}/consequence`,

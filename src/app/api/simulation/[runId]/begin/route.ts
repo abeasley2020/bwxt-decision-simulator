@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildInitialKPIs } from "@/engine/kpi";
+import { logQueryError } from "@/lib/errors";
 
 export async function POST(
   request: Request,
@@ -26,21 +27,34 @@ export async function POST(
 
   // Resolve public.users.id by email — may differ from auth.users.id
   // for accounts provisioned before the invite-flow fix.
-  const { data: publicUser } = await supabase
+  const { data: publicUser, error: publicUserError } = await supabase
     .from("users")
     .select("id")
     .eq("email", user.email!)
     .maybeSingle();
+
+  if (logQueryError("users lookup by email", publicUserError)) {
+    return NextResponse.json(
+      { error: "Could not load your account. Please try again." },
+      { status: 500 }
+    );
+  }
   const userId = publicUser?.id ?? user.id;
 
   // Verify ownership
-  const { data: run } = await supabase
+  const { data: run, error: runLookupError } = await supabase
     .from("simulation_runs")
     .select("id, status, user_id, scenario_version_id, cohort_id")
     .eq("id", params.runId)
     .eq("user_id", userId)
     .maybeSingle();
 
+  if (logQueryError("simulation_runs lookup", runLookupError)) {
+    return NextResponse.json(
+      { error: "Could not load your simulation run. Please try again." },
+      { status: 500 }
+    );
+  }
   if (!run) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (run.status !== "not_started") {
     // Already started — redirect to where they should be
@@ -50,7 +64,7 @@ export async function POST(
     });
   }
 
-  // Read self-assessment from form data (optional — gracefully degrade if missing)
+  // Read self-assessment from form data (optional, gracefully degrade if missing)
   let selfAssessment: Record<string, string | null> = {};
   try {
     const formData = await request.formData();
@@ -60,8 +74,9 @@ export async function POST(
       q3_regulatory_familiarity: formData.get("sa_q3")?.toString() ?? null,
       q4_primary_concern: formData.get("sa_q4")?.toString() ?? null,
     };
-  } catch {
-    // Body unreadable — continue without self-assessment
+  } catch (cause) {
+    // Body unreadable, continue without self-assessment
+    console.error("[begin] self-assessment body unreadable:", cause);
   }
 
   const now = new Date().toISOString();
@@ -83,7 +98,9 @@ export async function POST(
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  // Record initial KPI snapshot
+  // Record initial KPI snapshot. Without it, round 1 has no baseline to
+  // compare against and the results page reports the wrong net change, so
+  // undo the status change and let the participant retry.
   const { error: kpiError } = await supabase.from("kpi_snapshots").insert({
     simulation_run_id: run.id,
     snapshot_type: "initial",
@@ -92,7 +109,18 @@ export async function POST(
   });
 
   if (kpiError) {
-    console.error("Failed to insert initial KPI snapshot:", kpiError.message);
+    logQueryError("initial kpi_snapshots insert", kpiError);
+
+    const { error: revertError } = await supabase
+      .from("simulation_runs")
+      .update({ status: "not_started", started_at: null })
+      .eq("id", run.id);
+    logQueryError("simulation_runs revert to not_started", revertError);
+
+    return NextResponse.json(
+      { error: "Could not start the simulation. Please try again." },
+      { status: 500 }
+    );
   }
 
   return new Response(null, {

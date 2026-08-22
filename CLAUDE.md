@@ -60,5 +60,6 @@ Three layers, strictly separated:
 - TypeScript throughout; Tailwind with the `bwxt-*` token palette in `tailwind.config.ts` (navy `#17153A`, crimson `#9E3039`); Playfair for display headings, Inter for body.
 - WCAG 2.2 AA is a hard requirement on every surface: labeled inputs, `role="progressbar"` with aria values, state conveyed by symbol + text rather than color alone, `aria-live` for dynamic totals.
 - Client components that mutate call `router.refresh()` afterward so server components re-render.
+- Never ignore a Supabase `error` field. Use `throwOnQueryError` from `src/lib/errors.ts` when an empty result would be indistinguishable from a failure (anything feeding profile assignment, reports, or role checks) and `logQueryError` when the caller genuinely degrades to a default. Routes that write must not return success after a failed write.
 - Do not add npm dependencies without asking first.
 - No em dashes in any authored copy, comments, or docs.

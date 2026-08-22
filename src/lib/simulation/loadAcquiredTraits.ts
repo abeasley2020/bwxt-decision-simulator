@@ -11,6 +11,10 @@
  *
  * Does NOT enforce auth — callers must verify run ownership first.
  * Returns [] when the run has no responses yet.
+ *
+ * Throws DataAccessError when a query fails. A failed read is not the same as
+ * "no responses": swallowing it would assign, and permanently persist, a
+ * profile derived from an empty decision history.
  */
 
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
@@ -18,6 +22,7 @@ import { deriveAcquiredTraits } from "@/engine/effects";
 import { buildInitialKPIs } from "@/engine/kpi";
 import { buildInitialScores } from "@/engine/scoring";
 import type { DecisionResponse } from "@/engine/types";
+import { throwOnQueryError } from "@/lib/errors";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseLike = any;
@@ -27,10 +32,12 @@ export async function loadAcquiredTraits(
   runId: string,
   scenarioVersionId: string
 ): Promise<string[]> {
-  const { data: scenarioRounds } = await supabase
+  const { data: scenarioRounds, error: scenarioRoundsError } = await supabase
     .from("scenario_rounds")
     .select("id, round_number")
     .eq("scenario_version_id", scenarioVersionId);
+
+  throwOnQueryError("scenario_rounds lookup", scenarioRoundsError);
 
   const roundIdToNumber = new Map<string, number>(
     (scenarioRounds ?? []).map(
@@ -55,6 +62,9 @@ export async function loadAcquiredTraits(
       .eq("simulation_run_id", runId)
       .order("responded_at"),
   ]);
+
+  throwOnQueryError("decision_templates lookup", templateRowsRes.error);
+  throwOnQueryError("decision_responses lookup", responsesRes.error);
 
   const templateIdToKey = new Map<string, string>(
     (templateRowsRes.data ?? []).map(
