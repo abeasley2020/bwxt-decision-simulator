@@ -32,3 +32,6 @@ next-env.d.ts
 
 # Vercel
 .vercel
+
+# Test coverage
+coverage/

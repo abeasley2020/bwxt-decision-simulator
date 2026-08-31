@@ -17,9 +17,11 @@ npm run dev          # dev server on :3000
 npm run build        # production build (the main verification gate)
 npm run type-check   # tsc --noEmit
 npm run lint
+npm test             # vitest run (unit tests)
+npm run test:coverage
 ```
 
-There is no test suite. Engine changes are verified by compiling `src/engine/` + `src/content/` to CJS with tsc (path-alias imports are type-only, so they erase) and running assertion scripts against the compiled output. See the pattern in git history around commit `aff3be5`'s follow-up fixes.
+Unit tests live next to the code they cover as `*.test.ts` and run on vitest (`vitest.config.ts` maps the `@/*` alias). They cover the deterministic layers: `src/engine/`, `src/analytics/`, the Supabase-backed helpers in `src/lib/` (exercised through a small hand-rolled query-builder stub, no live DB), and content integrity checks in `src/content/iron-horizon/`. App Router pages, API routes, and React components are not covered. Run `npm test` for engine or content changes; `npm run build` is still the main verification gate for the app layer.
 
 Database: Supabase. `src/db/seed.sql` is applied manually in the Supabase SQL editor (deterministic UUIDs; scenario version `20000000-...-0001`). `.env.local` needs `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`.
 
