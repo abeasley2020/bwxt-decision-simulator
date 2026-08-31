@@ -18,31 +18,15 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireCurrentUser } from "@/lib/auth/currentUser";
 
 export default async function SimulationPage() {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { userId, role } = await requireCurrentUser(supabase);
 
-  if (!user) redirect("/login");
-
-  // ── Resolve public.users record ─────────────────────────────────────────────
-  // Query by email so we get the correct public.users.id even when it differs
-  // from auth.users.id (can happen for accounts provisioned before the
-  // invite-flow fix).
-  const { data: publicUser } = await supabase
-    .from("users")
-    .select("id, role")
-    .eq("email", user.email!)
-    .maybeSingle();
-
-  const userId   = publicUser?.id   ?? user.id;
-  const userRole = publicUser?.role ?? null;
-
-  if (userRole === "admin")   redirect("/admin/dashboard");
-  if (userRole === "faculty") redirect("/faculty/dashboard");
+  if (role === "admin")   redirect("/admin/dashboard");
+  if (role === "faculty") redirect("/faculty/dashboard");
 
   const isAdmin = false;
 

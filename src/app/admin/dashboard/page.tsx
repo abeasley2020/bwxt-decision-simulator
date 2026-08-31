@@ -12,10 +12,13 @@
  * all interactive elements keyboard accessible with visible focus rings.
  */
 
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdminViewer } from "@/lib/auth/roleGuards";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatShortDate } from "@/lib/format/date";
+import { formatFullName } from "@/lib/format/name";
+import { firstRelation } from "@/lib/supabase/relations";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -31,38 +34,14 @@ function statusLabel(status: string): string {
   return "Draft";
 }
 
-function formatDate(d: string | null): string {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function AdminDashboardPage() {
   const supabase = createClient();
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Auth and role gate ──────────────────────────────────────────────────────
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // ── Role check ──────────────────────────────────────────────────────────────
-
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!userRow) redirect("/login");
-  if (userRow.role === "faculty") redirect("/faculty/dashboard");
-  if (userRow.role === "participant") redirect("/simulation");
+  await requireAdminViewer(supabase);
 
   // ── Load all cohorts ─────────────────────────────────────────────────────
 
@@ -139,12 +118,9 @@ export default async function AdminDashboardPage() {
     };
 
     recentReports = ((recentRuns ?? []) as RecentRow[]).map((r) => {
-      const u = Array.isArray(r.users) ? r.users[0] : r.users;
-      const c = Array.isArray(r.cohorts) ? r.cohorts[0] : r.cohorts;
-      const fullName =
-        [u?.first_name, u?.last_name].filter(Boolean).join(" ") ||
-        u?.email ||
-        "Unknown";
+      const u = firstRelation(r.users);
+      const c = firstRelation(r.cohorts);
+      const fullName = formatFullName(u, "Unknown");
       return {
         userId: r.user_id,
         fullName,
@@ -266,7 +242,7 @@ export default async function AdminDashboardPage() {
                       {total > 0 ? `${pct}% (${completed}/${total})` : "—"}
                     </td>
                     <td className="px-5 py-4 text-gray-600">
-                      {formatDate(cohort.academy_start_date)}
+                      {formatShortDate(cohort.academy_start_date)}
                     </td>
                     <td className="px-5 py-4 text-right">
                       <Link
@@ -336,7 +312,7 @@ export default async function AdminDashboardPage() {
                   </div>
                 </div>
                 <div className="text-xs text-gray-400 tabular-nums whitespace-nowrap">
-                  {formatDate(r.completedAt)}
+                  {formatShortDate(r.completedAt)}
                 </div>
                 <Link
                   href={`/admin/participants/${r.userId}/report`}

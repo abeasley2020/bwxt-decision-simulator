@@ -7,6 +7,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { formatShortDate } from "@/lib/format/date";
 
 export default async function AdminScenariosPage() {
   const supabase = createClient();
@@ -127,11 +128,7 @@ export default async function AdminScenariosPage() {
                       </span>
                     </td>
                     <td style={{ padding: "14px 20px", color: "#6B7280" }}>
-                      {new Date(v.created_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
+                      {formatShortDate(v.created_at)}
                     </td>
                   </tr>
                 );

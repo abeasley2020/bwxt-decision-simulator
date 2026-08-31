@@ -10,10 +10,11 @@
  */
 
 import type { Metadata } from "next";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdminViewer } from "@/lib/auth/roleGuards";
 import { loadReportData } from "@/lib/report/loadReportData";
 import ReportView from "@/components/report/ReportView";
 import PrintButton from "@/components/report/PrintButton";
@@ -29,21 +30,7 @@ export const metadata: Metadata = {
 export default async function AdminReportPage({ params }: Props) {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // Role gate — admins only
-  const { data: viewerRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("email", user.email!)
-    .maybeSingle();
-
-  if (!viewerRow) redirect("/login");
-  if (viewerRow.role === "faculty") redirect("/faculty/dashboard");
-  if (viewerRow.role !== "admin") redirect("/simulation");
+  await requireAdminViewer(supabase);
 
   // Cross-cohort data reads — use the admin client per the established pattern
   const admin = createAdminClient();

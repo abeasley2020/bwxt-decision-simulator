@@ -10,6 +10,8 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireCurrentUser } from "@/lib/auth/currentUser";
+import { formatFullName } from "@/lib/format/name";
 import AdminNav from "./AdminNav";
 
 export default async function AdminLayout({
@@ -19,27 +21,18 @@ export default async function AdminLayout({
 }) {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // Resolve public.users by email (handles ID mismatch for older accounts)
-  const { data: publicUser } = await supabase
-    .from("users")
-    .select("id, role, first_name, last_name")
-    .eq("email", user.email!)
-    .maybeSingle();
+  const { publicUser, role, email } = await requireCurrentUser<{
+    first_name: string | null;
+    last_name: string | null;
+  }>(supabase, "first_name, last_name");
 
   if (!publicUser) redirect("/login");
 
   // Role guard
-  if (publicUser.role === "faculty") redirect("/faculty/dashboard");
-  if (publicUser.role === "participant") redirect("/simulation");
+  if (role === "faculty") redirect("/faculty/dashboard");
+  if (role === "participant") redirect("/simulation");
 
-  const firstName = publicUser.first_name ?? "";
-  const lastName = publicUser.last_name ?? "";
-  const userName = [firstName, lastName].filter(Boolean).join(" ") || user.email!;
+  const userName = formatFullName({ ...publicUser, email }, email);
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F4F4F7" }}>

@@ -11,24 +11,18 @@
  * all interactive elements keyboard accessible.
  */
 
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdminViewer } from "@/lib/auth/roleGuards";
 import { createAdminClient } from "@/lib/supabase/admin";
 import StatusControls from "./StatusControls";
 import InviteForm from "./InviteForm";
 import RemoveMemberButton from "./RemoveMemberButton";
+import { formatLongDate, formatShortDate } from "@/lib/format/date";
+import { firstRelation } from "@/lib/supabase/relations";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatDate(d: string | null): string {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 function formatDatetime(d: string | null): string {
   if (!d) return "—";
@@ -57,24 +51,9 @@ export default async function CohortManagePage({
 }) {
   const supabase = createClient();
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Auth and role gate ──────────────────────────────────────────────────────
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // ── Role check ──────────────────────────────────────────────────────────────
-
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!userRow || userRow.role !== "admin") {
-    redirect(userRow?.role === "faculty" ? "/faculty/dashboard" : "/simulation");
-  }
+  await requireAdminViewer(supabase);
 
   // Admin role confirmed — use the service-role client for membership/user
   // queries so RLS on `users` does not blank out the embedded join.
@@ -174,9 +153,9 @@ export default async function CohortManagePage({
 
   const sv = scenarioVersionRes.data;
   const scenarioTitle = sv
-    ? Array.isArray(sv.scenarios)
-      ? (sv.scenarios[0] as { title: string } | undefined)?.title
-      : (sv.scenarios as { title: string } | null)?.title
+    ? firstRelation(
+        sv.scenarios as { title: string } | { title: string }[] | null
+      )?.title
     : null;
   const versionLabel = sv
     ? `${scenarioTitle ? `${scenarioTitle} — ` : ""}${sv.version_label}`
@@ -258,7 +237,7 @@ export default async function CohortManagePage({
                   Academy Start
                 </dt>
                 <dd className="font-medium text-gray-800">
-                  {formatDate(cohort.academy_start_date)}
+                  {formatLongDate(cohort.academy_start_date)}
                 </dd>
               </div>
               <div>
@@ -266,7 +245,7 @@ export default async function CohortManagePage({
                   Academy End
                 </dt>
                 <dd className="font-medium text-gray-800">
-                  {formatDate(cohort.academy_end_date)}
+                  {formatLongDate(cohort.academy_end_date)}
                 </dd>
               </div>
               <div>
@@ -410,22 +389,10 @@ export default async function CohortManagePage({
                         </span>
                       </td>
                       <td className="px-5 py-3 text-gray-500 text-xs tabular-nums">
-                        {p.completedAt
-                          ? new Date(p.completedAt).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })
-                          : "—"}
+                        {formatShortDate(p.completedAt)}
                       </td>
                       <td className="px-5 py-3 text-gray-400 text-xs tabular-nums">
-                        {p.invitedAt
-                          ? new Date(p.invitedAt).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })
-                          : "—"}
+                        {formatShortDate(p.invitedAt)}
                       </td>
                       <td className="px-5 py-3 text-right">
                         <div className="flex items-center justify-end gap-3">
@@ -544,13 +511,7 @@ export default async function CohortManagePage({
                         </span>
                       </td>
                       <td className="px-5 py-3 text-gray-400 text-xs tabular-nums">
-                        {f.invitedAt
-                          ? new Date(f.invitedAt).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })
-                          : "—"}
+                        {formatShortDate(f.invitedAt)}
                       </td>
                       <td className="px-5 py-3 text-right">
                         <RemoveMemberButton

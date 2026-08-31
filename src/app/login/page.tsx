@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { homePathForRole } from "@/lib/auth/currentUser";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -35,14 +36,7 @@ export default function LoginPage() {
       .eq("email", authData.user.email!)
       .single();
 
-    const role = userData?.role;
-    if (role === "admin") {
-      router.push("/admin/dashboard");
-    } else if (role === "faculty") {
-      router.push("/faculty/dashboard");
-    } else {
-      router.push("/simulation");
-    }
+    router.push(homePathForRole(userData?.role));
   }
 
   return (

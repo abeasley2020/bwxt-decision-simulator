@@ -17,6 +17,7 @@ import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
+import { formatFullName } from "@/lib/format/name";
 import type {
   KPIValues,
   ScoreValues,
@@ -380,8 +381,7 @@ export async function loadReportData(
 
   const firstName = participantUser.first_name ?? "";
   const lastName = participantUser.last_name ?? "";
-  const fullName =
-    [firstName, lastName].filter(Boolean).join(" ") || participantUser.email;
+  const fullName = formatFullName(participantUser, participantUser.email);
 
   return {
     runId: run.id,

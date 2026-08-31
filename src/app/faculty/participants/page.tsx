@@ -13,23 +13,16 @@
  * text badge not color alone; keyboard-accessible links with visible focus.
  */
 
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getActiveFacultyCohort } from "@/lib/faculty/getActiveFacultyCohort";
+import { requireFacultyViewer } from "@/lib/auth/roleGuards";
+import NoCohortAssigned from "@/components/faculty/NoCohortAssigned";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
+import { formatShortDate } from "@/lib/format/date";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatDateTime(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 const STATUS_ORDER: Record<string, number> = {
   completed: 0,
@@ -46,24 +39,9 @@ const profileLabelMap = new Map(
 export default async function ParticipantListPage() {
   const supabase = createClient();
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Auth and role gate ──────────────────────────────────────────────────────
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // ── Role check ──────────────────────────────────────────────────────────────
-
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!userRow || userRow.role === "participant") {
-    redirect("/simulation");
-  }
+  const viewer = await requireFacultyViewer(supabase);
 
   // Faculty/admin role confirmed — use service-role client for membership/user/runs
   // queries so RLS on `users` does not blank out the embedded join.
@@ -71,19 +49,10 @@ export default async function ParticipantListPage() {
 
   // ── Cohort selection ────────────────────────────────────────────────────────
 
-  const cohort = await getActiveFacultyCohort(supabase, user.id);
+  const cohort = await getActiveFacultyCohort(supabase, viewer.userId);
 
   if (!cohort) {
-    return (
-      <main className="max-w-6xl mx-auto px-6 py-16 text-center">
-        <h1 className="text-2xl font-bold text-brand-navy mb-3">
-          No Cohort Assigned
-        </h1>
-        <p className="text-gray-500 text-sm">
-          Contact your administrator to be assigned to a cohort.
-        </p>
-      </main>
-    );
+    return <NoCohortAssigned />;
   }
 
   // ── Load participants ─────────────────────────────────────────────────────
@@ -278,7 +247,7 @@ export default async function ParticipantListPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3 text-gray-600 tabular-nums text-xs">
-                    {formatDateTime(row.completedAt)}
+                    {formatShortDate(row.completedAt)}
                   </td>
                   <td className="px-5 py-3 text-gray-700 text-xs">
                     {row.profileLabel}

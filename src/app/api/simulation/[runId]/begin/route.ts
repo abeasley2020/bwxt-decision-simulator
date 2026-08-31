@@ -9,6 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/currentUser";
 import { buildInitialKPIs } from "@/engine/kpi";
 
 export async function POST(
@@ -16,22 +17,11 @@ export async function POST(
   { params }: { params: { runId: string } }
 ) {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const current = await getCurrentUser(supabase);
+  if (!current) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  // Resolve public.users.id by email — may differ from auth.users.id
-  // for accounts provisioned before the invite-flow fix.
-  const { data: publicUser } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", user.email!)
-    .maybeSingle();
-  const userId = publicUser?.id ?? user.id;
+  const userId = current.userId;
 
   // Verify ownership
   const { data: run } = await supabase

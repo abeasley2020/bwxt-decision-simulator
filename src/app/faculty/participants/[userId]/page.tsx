@@ -18,15 +18,17 @@
  * all sections use aria-labelledby.
  */
 
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveFacultyCohort } from "@/lib/faculty/getActiveFacultyCohort";
+import { requireFacultyViewer } from "@/lib/auth/roleGuards";
 import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
 import type { KPIValues, ScoreValues, KPIKey, PerformanceProfileKey } from "@/engine/types";
+import { formatLongDate } from "@/lib/format/date";
 
 // ─── Content lookups (built once, not re-computed per render) ─────────────────
 
@@ -96,28 +98,13 @@ interface Props {
 export default async function ParticipantDetailPage({ params }: Props) {
   const supabase = createClient();
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Auth and role gate ──────────────────────────────────────────────────────
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // ── Role check ──────────────────────────────────────────────────────────────
-
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!userRow || userRow.role === "participant") {
-    redirect("/simulation");
-  }
+  const viewer = await requireFacultyViewer(supabase);
 
   // ── Cohort selection ────────────────────────────────────────────────────────
 
-  const cohort = await getActiveFacultyCohort(supabase, user.id);
+  const cohort = await getActiveFacultyCohort(supabase, viewer.userId);
   if (!cohort) notFound();
 
   // ── Verify participant belongs to this cohort ─────────────────────────────
@@ -407,15 +394,6 @@ export default async function ParticipantDetailPage({ params }: Props) {
     not_started: "bg-gray-100 text-gray-600",
   };
 
-  function formatDate(d: string | null) {
-    if (!d) return "—";
-    return new Date(d).toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
-  }
-
   const kpiList = Object.values(KPI_DEFINITIONS);
   const scoreList = Object.values(SCORING_DIMENSIONS);
 
@@ -446,7 +424,7 @@ export default async function ParticipantDetailPage({ params }: Props) {
           <p className="text-gray-500 text-sm mt-0.5">{participantUser.email}</p>
           {run.completed_at && (
             <p className="text-gray-400 text-xs mt-1">
-              Completed {formatDate(run.completed_at)}
+              Completed {formatLongDate(run.completed_at)}
             </p>
           )}
         </div>

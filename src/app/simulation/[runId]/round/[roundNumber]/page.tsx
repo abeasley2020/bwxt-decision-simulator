@@ -13,6 +13,7 @@
 
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireCurrentUser } from "@/lib/auth/currentUser";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
 import RoundForm from "@/components/round/RoundForm";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
@@ -24,17 +25,7 @@ interface Props {
 export default async function RoundPage({ params }: Props) {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: publicUser } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", user.email!)
-    .maybeSingle();
-  const userId = publicUser?.id ?? user.id;
+  const { userId } = await requireCurrentUser(supabase);
 
   const roundNumber = parseInt(params.roundNumber, 10);
   if (isNaN(roundNumber) || roundNumber < 1 || roundNumber > 3) notFound();

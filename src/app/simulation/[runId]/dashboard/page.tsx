@@ -18,19 +18,17 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
+import { KPI_DEFINITIONS } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
-import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
-import { assignPerformanceProfile } from "@/engine/profiling";
-import { loadAcquiredTraits } from "@/lib/simulation/loadAcquiredTraits";
+import { requireCurrentUser } from "@/lib/auth/currentUser";
+import { loadRunKpiState } from "@/lib/simulation/loadRunKpiState";
+import {
+  PROFILE_RULE_SELECT,
+  PROFILE_SELECT,
+  displayProfile as contentProfile,
+  resolveProfileKey,
+} from "@/lib/simulation/resolveProfileKey";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
-import type {
-  KPIValues,
-  ScoreValues,
-  PerformanceProfileKey,
-  PerformanceProfile,
-  ProfileRuleLogic,
-} from "@/engine/types";
 
 interface Props {
   params: { runId: string };
@@ -51,17 +49,7 @@ const REC_FIELDS: Array<{ key: string; label: string }> = [
 export default async function ParticipantDashboardPage({ params }: Props) {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: publicUser } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", user.email!)
-    .maybeSingle();
-  const userId = publicUser?.id ?? user.id;
+  const { userId } = await requireCurrentUser(supabase);
 
   const { data: run } = await supabase
     .from("simulation_runs")
@@ -78,68 +66,12 @@ export default async function ParticipantDashboardPage({ params }: Props) {
     redirect(`/simulation/${run.id}/round/${run.current_round_number ?? 1}`);
   }
 
-  // ── Load scenario round IDs ──────────────────────────────────────────────
-
-  const { data: scenarioRounds } = await supabase
-    .from("scenario_rounds")
-    .select("id, round_number")
-    .eq("scenario_version_id", run.scenario_version_id)
-    .order("round_number");
-
-  const roundIdMap = new Map(
-    (scenarioRounds ?? []).map((r) => [r.round_number as number, r.id as string])
-  );
-
   // ── Load all data in parallel ────────────────────────────────────────────
 
-  const makeRoundKpiQuery = (roundNum: number) => {
-    const rid = roundIdMap.get(roundNum);
-    if (!rid) return Promise.resolve({ data: null });
-    return supabase
-      .from("kpi_snapshots")
-      .select("kpi_values_json")
-      .eq("simulation_run_id", run.id)
-      .eq("scenario_round_id", rid)
-      .eq("snapshot_type", "round_end")
-      .maybeSingle();
-  };
-
-  const [
-    initialKpiRes,
-    r1KpiRes,
-    r2KpiRes,
-    r3KpiRes,
-    finalScoreRes,
-    dbProfilesRes,
-    dbRulesRes,
-    recommendationRes,
-  ] = await Promise.all([
-    supabase
-      .from("kpi_snapshots")
-      .select("kpi_values_json")
-      .eq("simulation_run_id", run.id)
-      .eq("snapshot_type", "initial")
-      .maybeSingle(),
-    makeRoundKpiQuery(1),
-    makeRoundKpiQuery(2),
-    makeRoundKpiQuery(3),
-    (() => {
-      const rid = roundIdMap.get(3);
-      if (!rid) return Promise.resolve({ data: null });
-      return supabase
-        .from("score_snapshots")
-        .select("score_values_json")
-        .eq("simulation_run_id", run.id)
-        .eq("scenario_round_id", rid)
-        .eq("snapshot_type", "round_end")
-        .maybeSingle();
-    })(),
-    supabase
-      .from("performance_profiles")
-      .select("id, key, label, description, strengths_text, blind_spots_text"),
-    supabase
-      .from("profile_rules")
-      .select("performance_profile_id, priority_order, rule_logic_json"),
+  const [kpiState, dbProfilesRes, dbRulesRes, recommendationRes] = await Promise.all([
+    loadRunKpiState(supabase, run.id, run.scenario_version_id),
+    supabase.from("performance_profiles").select(PROFILE_SELECT),
+    supabase.from("profile_rules").select(PROFILE_RULE_SELECT),
     supabase
       .from("executive_recommendations")
       .select(
@@ -149,84 +81,25 @@ export default async function ParticipantDashboardPage({ params }: Props) {
       .maybeSingle(),
   ]);
 
-  // ── Build KPI state ──────────────────────────────────────────────────────
-
-  const baselineKPIs = (
-    initialKpiRes.data?.kpi_values_json ?? buildInitialKPIs()
-  ) as KPIValues;
-  const r1KPIs = (r1KpiRes.data?.kpi_values_json ?? baselineKPIs) as KPIValues;
-  const r2KPIs = (r2KpiRes.data?.kpi_values_json ?? r1KPIs) as KPIValues;
-  const finalKPIs = (r3KpiRes.data?.kpi_values_json ?? r2KPIs) as KPIValues;
-  const finalScores = (finalScoreRes.data?.score_values_json ?? {}) as ScoreValues;
+  const { baselineKPIs, finalKPIs, finalScores, kpiTrajectory } = kpiState;
 
   // ── Profile assignment ───────────────────────────────────────────────────
 
-  let assignedProfileKey: PerformanceProfileKey | null = null;
+  const assignedProfileKey = await resolveProfileKey(supabase, {
+    run,
+    finalKPIs,
+    finalScores,
+    dbProfiles: dbProfilesRes.data ?? [],
+    dbRules: dbRulesRes.data ?? [],
+  });
 
-  if (run.final_profile_id) {
-    const match = (dbProfilesRes.data ?? []).find(
-      (p) => p.id === run.final_profile_id
-    );
-    assignedProfileKey = (match?.key as PerformanceProfileKey) ?? null;
-  } else {
-    // final_profile_id not yet set — run assignment and persist
-    const dbProfiles = dbProfilesRes.data ?? [];
-    const dbRules = dbRulesRes.data ?? [];
-
-    // Hidden traits are not persisted — replay stored responses to
-    // reconstruct them so trait-gated profile rules can match.
-    const acquiredTraits = await loadAcquiredTraits(
-      supabase,
-      run.id,
-      run.scenario_version_id
-    );
-
-    if (dbProfiles.length > 0) {
-      const engineProfiles: PerformanceProfile[] = dbProfiles.map((p) => ({
-        key: p.key as PerformanceProfileKey,
-        label: p.label,
-        description: p.description ?? "",
-        strengthsText: p.strengths_text ?? "",
-        blindSpotsText: p.blind_spots_text ?? "",
-        rules: dbRules
-          .filter((r) => r.performance_profile_id === p.id)
-          .map((r) => ({
-            priorityOrder: r.priority_order as number,
-            ruleLogicJson: r.rule_logic_json as ProfileRuleLogic,
-          })),
-      }));
-
-      const result = assignPerformanceProfile(finalKPIs, finalScores, acquiredTraits, engineProfiles);
-      assignedProfileKey = result.profileKey;
-
-      const matched = dbProfiles.find((p) => p.key === result.profileKey);
-      if (matched) {
-        await supabase
-          .from("simulation_runs")
-          .update({ final_profile_id: matched.id, last_active_at: new Date().toISOString() })
-          .eq("id", run.id);
-      }
-    } else {
-      const result = assignPerformanceProfile(finalKPIs, finalScores, acquiredTraits, PERFORMANCE_PROFILES);
-      assignedProfileKey = result.profileKey;
-    }
-  }
-
-  const displayProfile =
-    PERFORMANCE_PROFILES.find((p) => p.key === assignedProfileKey) ?? null;
+  const displayProfile = contentProfile(assignedProfileKey);
 
   // ── Derived display data ─────────────────────────────────────────────────
 
   const kpiList = Object.values(KPI_DEFINITIONS);
   const scoreList = Object.values(SCORING_DIMENSIONS);
   const recommendation = recommendationRes.data ?? null;
-
-  const kpiTrajectory = [
-    { label: "Baseline", values: baselineKPIs },
-    { label: "Round 1",  values: r1KPIs       },
-    { label: "Round 2",  values: r2KPIs       },
-    { label: "Round 3",  values: finalKPIs    },
-  ];
 
   // ─── Render ───────────────────────────────────────────────────────────────
 

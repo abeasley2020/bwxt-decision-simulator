@@ -24,6 +24,7 @@ import {
 } from "@/lib/report/loadReportData";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
 import type { KPIKey } from "@/engine/types";
+import { formatLongDate } from "@/lib/format/date";
 
 interface Props {
   data: ReportData;
@@ -39,15 +40,6 @@ const RECOMMENDATION_FIELDS: Array<{
   { key: "talentImplications", label: "Talent Implications" },
   { key: "communicationApproach", label: "Communication Approach" },
 ];
-
-function formatDate(d: string | null): string {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 export default function ReportView({ data }: Props) {
   const {
@@ -119,7 +111,7 @@ export default function ReportView({ data }: Props) {
             <dt className="text-[11px] font-semibold uppercase tracking-[0.1em] text-white/55 mb-1">
               Completed
             </dt>
-            <dd className="text-white text-[15px]">{formatDate(completedAt)}</dd>
+            <dd className="text-white text-[15px]">{formatLongDate(completedAt)}</dd>
             {cohort && (
               <>
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.1em] text-white/55 mt-3 mb-1">

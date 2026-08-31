@@ -16,6 +16,7 @@ import type { Metadata } from "next";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { requireCurrentUser } from "@/lib/auth/currentUser";
 import { loadReportData } from "@/lib/report/loadReportData";
 import ReportView from "@/components/report/ReportView";
 import PrintButton from "@/components/report/PrintButton";
@@ -31,19 +32,7 @@ export const metadata: Metadata = {
 export default async function ParticipantReportPage({ params }: Props) {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // Resolve public.users by email — handles the legacy ID mismatch documented
-  // in CLAUDE memory (existing pattern across simulation routes).
-  const { data: publicUser } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", user.email!)
-    .maybeSingle();
-  const userId = publicUser?.id ?? user.id;
+  const { userId } = await requireCurrentUser(supabase);
 
   // Pre-check the run's status so we can route the user back to the right
   // place if the report isn't ready yet — loadReportData() returns null
