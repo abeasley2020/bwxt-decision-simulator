@@ -1,0 +1,4 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "ignorePatterns": ["public/walkthrough.html", ".next/", "node_modules/", "scripts/"]
+}

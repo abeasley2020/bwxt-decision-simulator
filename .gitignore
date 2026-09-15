@@ -32,3 +32,11 @@ next-env.d.ts
 
 # Vercel
 .vercel
+
+# Claude Code local settings and worktrees (machine-specific, may contain secrets)
+.claude/settings.local.json
+.claude/worktrees/
+.claude/launch.json
+
+# Audit reports
+_audit/
