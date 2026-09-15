@@ -11,6 +11,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -25,13 +26,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Resolve public.users by email first: auth.users.id and public.users.id
+  // differ for legacy accounts, so an id-only lookup 403s a real admin.
+  const viewer = await resolvePublicUser(supabase, user);
 
-  if (!userRow || userRow.role !== "admin") {
+  if (!viewer || viewer.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

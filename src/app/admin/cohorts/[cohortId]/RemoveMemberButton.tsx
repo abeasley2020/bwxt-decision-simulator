@@ -68,7 +68,7 @@ export default function RemoveMemberButton({
         <button
           type="button"
           onClick={() => setConfirming(false)}
-          className="text-xs text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 rounded"
+          className="text-xs text-gray-600 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 rounded"
         >
           Cancel
         </button>
@@ -80,7 +80,7 @@ export default function RemoveMemberButton({
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      className="text-xs text-gray-400 hover:text-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 rounded"
+      className="text-xs text-gray-600 hover:text-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 rounded"
       aria-label={`Remove ${memberName} from cohort`}
     >
       Remove

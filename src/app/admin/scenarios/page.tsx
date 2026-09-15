@@ -7,6 +7,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
+import { firstOf } from "@/lib/supabase/relations";
 
 export default async function AdminScenariosPage() {
   const supabase = createClient();
@@ -15,6 +17,14 @@ export default async function AdminScenariosPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Role gate. App Router layouts do not re-render on client-side navigation,
+  // so the admin layout is not an authorization boundary; check here too.
+  const viewer = await resolvePublicUser(supabase, user);
+  if (!viewer) redirect("/login");
+  if (viewer.role !== "admin") {
+    redirect(viewer.role === "faculty" ? "/faculty/dashboard" : "/simulation");
+  }
 
   const { data: versions } = await supabase
     .from("scenario_versions")
@@ -96,7 +106,12 @@ export default async function AdminScenariosPage() {
             </thead>
             <tbody>
               {versionList.map((v) => {
-                const scenario = v.scenarios as unknown as { title: string } | null;
+                const scenario = firstOf(
+                  v.scenarios as
+                    | { title: string }
+                    | Array<{ title: string }>
+                    | null
+                );
                 return (
                   <tr key={v.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
                     <td

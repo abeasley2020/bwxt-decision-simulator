@@ -19,6 +19,10 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  resolvePublicUser,
+  isFacultyOrAdmin,
+} from "@/lib/auth/resolvePublicUser";
 import { getActiveFacultyCohort } from "@/lib/faculty/getActiveFacultyCohort";
 import { loadReportData } from "@/lib/report/loadReportData";
 import ReportView from "@/components/report/ReportView";
@@ -40,19 +44,15 @@ export default async function FacultyReportPage({ params }: Props) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Role gate
-  const { data: viewerRow } = await supabase
-    .from("users")
-    .select("id, role")
-    .eq("email", user.email!)
-    .maybeSingle();
+  // Role gate — allow-list, not deny-list
+  const viewer = await resolvePublicUser(supabase, user);
 
-  if (!viewerRow || viewerRow.role === "participant") {
+  if (!viewer || !isFacultyOrAdmin(viewer.role)) {
     redirect("/simulation");
   }
 
   // Active faculty cohort
-  const cohort = await getActiveFacultyCohort(supabase, viewerRow.id);
+  const cohort = await getActiveFacultyCohort(supabase, viewer.id);
   if (!cohort) notFound();
 
   // Membership check: target user must be a participant in this cohort
@@ -117,8 +117,37 @@ export default async function FacultyReportPage({ params }: Props) {
     );
   }
 
-  const reportData = await loadReportData(admin, run.id);
-  if (!reportData) notFound();
+  const report = await loadReportData(admin, run.id);
+
+  if (!report.ok) {
+    if (report.reason !== "final_data_unavailable") notFound();
+    return (
+      <main className="max-w-3xl mx-auto px-6 py-12">
+        <Link
+          href={`/faculty/participants/${params.userId}`}
+          className="text-[13px] text-bwxt-text-secondary hover:text-bwxt-navy"
+        >
+          ← Back to Participant Detail
+        </Link>
+        <div
+          role="alert"
+          className="mt-6 bg-white border-2 border-bwxt-crimson rounded-xl p-8"
+        >
+          <h1 className="text-bwxt-navy font-bold text-lg mb-2">
+            Report unavailable
+          </h1>
+          <p className="text-[15px] text-bwxt-text-secondary leading-relaxed">
+            This run&apos;s final performance data could not be loaded, so the
+            report cannot be produced. The participant&apos;s decisions are
+            saved. Check that the run has a round 3 snapshot before reporting
+            on it.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  const reportData = report.data;
 
   return (
     <div className="min-h-screen bg-bwxt-bg pb-12 print:bg-white print:pb-0">

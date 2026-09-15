@@ -17,6 +17,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 
 // ─── Date formatters for input default values ─────────────────────────────────
 
@@ -50,14 +51,10 @@ export default async function EditCohortPage({
 
   // ── Role check ──────────────────────────────────────────────────────────────
 
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  const viewer = await resolvePublicUser(supabase, user);
 
-  if (!userRow || userRow.role !== "admin") {
-    redirect(userRow?.role === "faculty" ? "/faculty/dashboard" : "/simulation");
+  if (!viewer || viewer.role !== "admin") {
+    redirect(viewer?.role === "faculty" ? "/faculty/dashboard" : "/simulation");
   }
 
   // ── Load cohort ──────────────────────────────────────────────────────────────
@@ -129,7 +126,7 @@ export default async function EditCohortPage({
               className="block text-sm font-semibold text-gray-700 mb-1"
             >
               Description{" "}
-              <span className="text-gray-400 font-normal">(optional)</span>
+              <span className="text-gray-600 font-normal">(optional)</span>
             </label>
             <textarea
               id="description"

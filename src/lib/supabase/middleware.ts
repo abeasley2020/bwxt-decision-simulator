@@ -38,9 +38,14 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes that don't require auth
+  // /auth/callback must be public: Supabase password-recovery and any future
+  // magic-link flow land there with a code to exchange, and redirecting it to
+  // /login first would break password reset entirely. The route validates its
+  // own next parameter against off-site redirects.
+  //
   // /walkthrough is the static SME/ID demo (public/walkthrough.html). It has
   // no participant data; engine and content are baked into the file.
-  const publicPaths = ["/login", "/auth/verify", "/api/auth", "/walkthrough"];
+  const publicPaths = ["/login", "/auth/callback", "/walkthrough"];
   const isPublic = publicPaths.some((p) => pathname.startsWith(p));
 
   if (!user && !isPublic) {

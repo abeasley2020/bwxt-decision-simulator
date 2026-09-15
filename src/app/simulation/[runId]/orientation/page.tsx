@@ -19,7 +19,16 @@
 
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
+import {
+  IRON_HORIZON_VERSION,
+  SCENARIO_TITLE,
+  SCENARIO_SUBTITLE,
+  SCENARIO_ROLE_TITLE,
+  SCENARIO_ROLE_TAGLINE,
+  SCENARIO_BRIEF_PARAGRAPHS,
+  SCENARIO_CHALLENGES,
+  SCENARIO_PREFLIGHT_NOTES,
+} from "@/content/iron-horizon";
 import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
 import SelfAssessmentForm from "@/components/orientation/SelfAssessmentForm";
@@ -69,12 +78,10 @@ export default async function OrientationPage({ params }: Props) {
       <div className="bg-bwxt-navy">
         <div className="max-w-[880px] mx-auto px-6 py-16">
           <h1 className="font-playfair font-bold text-[44px] text-white leading-tight tracking-tight">
-            Operation Iron Horizon
+            {SCENARIO_TITLE}
           </h1>
           <div className="w-[60px] h-[3px] bg-bwxt-crimson my-4" aria-hidden="true" />
-          <p className="text-[16px] text-white/70">
-            Executive Decision Simulation &mdash; Leadership Assessment
-          </p>
+          <p className="text-[16px] text-white/70">{SCENARIO_SUBTITLE}</p>
           <div className="flex flex-wrap gap-3 mt-5">
             <span className="bg-white/10 border border-white/20 rounded-full px-3 py-1 text-white text-[13px] font-medium">
               ~{IRON_HORIZON_VERSION.estimatedDurationMinutes} min
@@ -103,13 +110,13 @@ export default async function OrientationPage({ params }: Props) {
               marginBottom: "20px",
             }}
           >
-            Operation Iron Horizon
+            {SCENARIO_TITLE}
           </p>
           <h2
             className="font-playfair font-bold text-white"
             style={{ fontSize: "36px", lineHeight: 1.2 }}
           >
-            Acting President, BWXT Nuclear Division
+            {SCENARIO_ROLE_TITLE}
           </h2>
           <div
             aria-hidden="true"
@@ -128,7 +135,7 @@ export default async function OrientationPage({ params }: Props) {
               color: "rgba(255,255,255,0.65)",
             }}
           >
-            90-Day Mandate.&nbsp; Three Rounds.&nbsp; Real Consequences.
+            {SCENARIO_ROLE_TAGLINE}
           </p>
         </div>
       </div>
@@ -159,32 +166,23 @@ export default async function OrientationPage({ params }: Props) {
               Situation Brief
             </p>
 
-            {/* Opening paragraphs — Playfair italic */}
-            <p
-              className="font-playfair"
-              style={{
-                fontSize: "18px",
-                color: "#17153A",
-                lineHeight: 1.7,
-                marginBottom: "16px",
-              }}
-            >
-              You have just been named Acting President of BWXT&apos;s largest
-              operating division. The division generates $2.4B in annual revenue
-              across defense manufacturing, commercial nuclear services, and
-              emerging government technology contracts.
-            </p>
-            <p
-              className="font-playfair"
-              style={{
-                fontSize: "18px",
-                color: "#17153A",
-                lineHeight: 1.7,
-              }}
-            >
-              You have 90 days to demonstrate executive leadership before the
-              Board confirms your appointment permanently.
-            </p>
+            {/* Opening paragraphs, Playfair italic. Authored in
+                src/content/iron-horizon/scenario.ts. Do not restate here. */}
+            {SCENARIO_BRIEF_PARAGRAPHS.map((paragraph, i) => (
+              <p
+                key={i}
+                className="font-playfair"
+                style={{
+                  fontSize: "18px",
+                  color: "#17153A",
+                  lineHeight: 1.7,
+                  marginBottom:
+                    i === SCENARIO_BRIEF_PARAGRAPHS.length - 1 ? 0 : "16px",
+                }}
+              >
+                {paragraph}
+              </p>
+            ))}
 
             {/* Divider */}
             <div
@@ -198,28 +196,7 @@ export default async function OrientationPage({ params }: Props) {
 
             {/* Four challenge cards */}
             <div className="grid sm:grid-cols-2 gap-4">
-              {[
-                {
-                  category: "Contract Margin",
-                  title: "Defense Margin Pressure",
-                  body: "A competitor's recent bid has placed BWXT's core defense contracts under significant margin pressure.",
-                },
-                {
-                  category: "Compliance Risk",
-                  title: "Nuclear Safety Audit",
-                  body: "A mandatory safety audit is scheduled in 60 days. Potential compliance exposure has not yet been resolved.",
-                },
-                {
-                  category: "Execution Lag",
-                  title: "Digital Transformation",
-                  body: "The division's digital transformation program is running 18 months behind its original delivery schedule.",
-                },
-                {
-                  category: "Talent Retention",
-                  title: "Direct Report Flight Risk",
-                  body: "Two of your six direct reports are considered flight risks and may require immediate attention.",
-                },
-              ].map((card) => (
+              {SCENARIO_CHALLENGES.map((card) => (
                 <div
                   key={card.category}
                   style={{
@@ -286,10 +263,7 @@ export default async function OrientationPage({ params }: Props) {
           <ul className="bg-white border border-bwxt-border rounded-xl shadow-card divide-y divide-bwxt-border">
             {[
               `This simulation takes approximately ${IRON_HORIZON_VERSION.estimatedDurationMinutes} minutes to complete.`,
-              "You will face three rounds of decisions, each with real consequences.",
-              "Your decisions are logged and cannot be changed once submitted.",
-              "Write your rationale thoughtfully — it signals how you think, not just what you choose.",
-              "You can pause and return at any time. Your progress is saved automatically.",
+              ...SCENARIO_PREFLIGHT_NOTES,
             ].map((item, i) => (
               <li
                 key={i}

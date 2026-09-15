@@ -133,7 +133,14 @@ export async function POST(
         redirectTo: `/simulation/${params.runId}/complete`,
       });
     }
-    return NextResponse.json({ error: recError.message }, { status: 500 });
+    console.error("Failed to save executive recommendation:", recError.message);
+    return NextResponse.json(
+      {
+        error:
+          "Could not save your recommendation. Please try again.",
+      },
+      { status: 500 }
+    );
   }
 
   // Mark run as completed

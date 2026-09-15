@@ -7,22 +7,24 @@
  *
  * Does NOT enforce auth or role — callers must do that before invoking.
  *
- * Returns null if the run does not exist or the simulation is not yet
- * complete enough to produce a meaningful report (must have at least
- * status === "completed", which guarantees executive recommendation
- * has been submitted).
+ * Returns a discriminated result. `ok: false` covers a run that does not
+ * exist, one that is not yet complete (status must be "completed", which
+ * guarantees the executive recommendation was submitted), and one whose
+ * final snapshot could not be read. Callers render the matching state; they
+ * must never print substitute numbers under a "Final" heading.
  */
 
-import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
+import { KPI_DEFINITIONS } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
+import { loadRunSnapshots } from "@/lib/simulation/loadRunSnapshots";
+import { resolveRunProfile } from "@/lib/simulation/resolveRunProfile";
 import type {
   KPIValues,
   ScoreValues,
   KPIKey,
   PerformanceProfile,
-  PerformanceProfileKey,
 } from "@/engine/types";
 
 // ─── Built-once content lookups ──────────────────────────────────────────────
@@ -124,6 +126,21 @@ export interface ReportData {
   selfAssessment: Record<string, string>;
 }
 
+/**
+ * Why a report could not be produced. `final_data_unavailable` means the run
+ * exists and is complete but its final snapshot could not be read; callers
+ * must render an explicit unavailable state rather than printing substitute
+ * numbers under a "Final" heading.
+ */
+export type ReportUnavailableReason =
+  | "not_found"
+  | "incomplete"
+  | "final_data_unavailable";
+
+export type LoadReportDataResult =
+  | { ok: true; data: ReportData }
+  | { ok: false; reason: ReportUnavailableReason };
+
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -142,7 +159,7 @@ export async function loadReportData(
   supabase: SupabaseLike,
   runId: string,
   options: LoadOptions = {}
-): Promise<ReportData | null> {
+): Promise<LoadReportDataResult> {
   // ── Load run + participant ──────────────────────────────────────────────
 
   let runQuery = supabase
@@ -157,11 +174,11 @@ export async function loadReportData(
   }
 
   const { data: run } = await runQuery.maybeSingle();
-  if (!run) return null;
+  if (!run) return { ok: false, reason: "not_found" };
 
   // Report only available after the simulation is fully complete
   // (executive recommendation submitted)
-  if (run.status !== "completed") return null;
+  if (run.status !== "completed") return { ok: false, reason: "incomplete" };
 
   const [participantRes, cohortRes] = await Promise.all([
     supabase
@@ -177,7 +194,7 @@ export async function loadReportData(
   ]);
 
   const participantUser = participantRes.data;
-  if (!participantUser) return null;
+  if (!participantUser) return { ok: false, reason: "not_found" };
 
   // ── Load scenario rounds ─────────────────────────────────────────────────
 
@@ -193,34 +210,19 @@ export async function loadReportData(
       r.round_number,
     ])
   );
-  const round3Id = (scenarioRounds ?? []).find(
-    (r: { round_number: number }) => r.round_number === 3
-  )?.id as string | undefined;
 
-  // ── Parallel load: snapshots, decisions, recommendation, profiles ─────
+  // ── Parallel load: snapshots, decisions, recommendation ──────────────────
 
   const [
-    kpiSnapshotsRes,
-    scoreSnapshotsRes,
+    snapshots,
     decisionResponsesRes,
     templateRowsRes,
     recommendationRes,
-    dbProfilesRes,
   ] = await Promise.all([
-    supabase
-      .from("kpi_snapshots")
-      .select("snapshot_type, scenario_round_id, kpi_values_json")
-      .eq("simulation_run_id", run.id)
-      .order("captured_at"),
-    round3Id
-      ? supabase
-          .from("score_snapshots")
-          .select("score_values_json")
-          .eq("simulation_run_id", run.id)
-          .eq("scenario_round_id", round3Id)
-          .eq("snapshot_type", "round_end")
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
+    // Shared snapshot loader: the printed report must show the same "final"
+    // numbers as /results and /dashboard, and must not fall back to the
+    // baseline when the round-3 snapshot is missing.
+    loadRunSnapshots(supabase, run.id, run.scenario_version_id),
     supabase
       .from("decision_responses")
       .select(
@@ -242,63 +244,41 @@ export async function loadReportData(
       )
       .eq("simulation_run_id", run.id)
       .maybeSingle(),
-    supabase.from("performance_profiles").select("id, key"),
   ]);
+
+  if (!snapshots.ok) {
+    console.error(
+      `loadReportData: final data unavailable for run ${run.id} (${snapshots.reason})`
+    );
+    return { ok: false, reason: "final_data_unavailable" };
+  }
 
   // ── Build KPI values ─────────────────────────────────────────────────────
 
-  const allKpiSnapshots: Array<{
-    snapshot_type: string;
-    scenario_round_id: string | null;
-    kpi_values_json: Record<string, number>;
-  }> = kpiSnapshotsRes.data ?? [];
-
-  const baselineKPIs = (allKpiSnapshots.find(
-    (s) => s.snapshot_type === "initial"
-  )?.kpi_values_json ?? buildInitialKPIs()) as KPIValues;
-
-  const finalKpiSnapshot = round3Id
-    ? allKpiSnapshots.find(
-        (s) =>
-          s.snapshot_type === "round_end" && s.scenario_round_id === round3Id
-      )
-    : null;
-  const finalKPIs = (finalKpiSnapshot?.kpi_values_json ?? baselineKPIs) as KPIValues;
-  const finalScores = (scoreSnapshotsRes.data?.score_values_json ?? {}) as ScoreValues;
-
-  function getRoundEndKPIs(roundNum: number): KPIValues | null {
-    const rid = (scenarioRounds ?? []).find(
-      (r: { round_number: number }) => r.round_number === roundNum
-    )?.id;
-    if (!rid) return null;
-    const snap = allKpiSnapshots.find(
-      (s) => s.snapshot_type === "round_end" && s.scenario_round_id === rid
-    );
-    return snap ? (snap.kpi_values_json as KPIValues) : null;
-  }
-
-  const r1KPIs = getRoundEndKPIs(1);
-  const r2KPIs = getRoundEndKPIs(2);
-  const r3KPIs = getRoundEndKPIs(3);
+  const baselineKPIs: KPIValues = snapshots.baseline;
+  const finalKPIs: KPIValues = snapshots.final;
+  const finalScores: ScoreValues = snapshots.finalScores;
 
   const kpiTrajectory = [
     { label: "Baseline", values: baselineKPIs },
-    ...(r1KPIs ? [{ label: "Round 1", values: r1KPIs }] : []),
-    ...(r2KPIs ? [{ label: "Round 2", values: r2KPIs }] : []),
-    ...(r3KPIs ? [{ label: "Round 3", values: r3KPIs }] : []),
+    ...(snapshots.r1 ? [{ label: "Round 1", values: snapshots.r1 }] : []),
+    ...(snapshots.r2 ? [{ label: "Round 2", values: snapshots.r2 }] : []),
+    { label: "Round 3", values: finalKPIs },
   ];
 
   // ── Profile resolution ───────────────────────────────────────────────────
+  // Assign-or-read through the shared helper. Reading final_profile_id alone
+  // left the printed report blank for any run whose profile had never been
+  // assigned, while /results showed one.
 
-  let assignedProfileKey: string | null = null;
-  if (run.final_profile_id) {
-    const dbProfiles: Array<{ id: string; key: string }> =
-      dbProfilesRes.data ?? [];
-    const matched = dbProfiles.find((p) => p.id === run.final_profile_id);
-    assignedProfileKey = matched?.key ?? null;
-  }
-  const profile = assignedProfileKey
-    ? (PROFILE_MAP.get(assignedProfileKey as PerformanceProfileKey) ?? null)
+  const assignedProfileKey = await resolveRunProfile(supabase, run, {
+    finalKPIs,
+    finalScores,
+    finalScoresAvailable: snapshots.finalScoresAvailable,
+  });
+
+  const profile: PerformanceProfile | null = assignedProfileKey
+    ? (PROFILE_MAP.get(assignedProfileKey) ?? null)
     : null;
 
   // ── Decision summary ─────────────────────────────────────────────────────
@@ -383,7 +363,7 @@ export async function loadReportData(
   const fullName =
     [firstName, lastName].filter(Boolean).join(" ") || participantUser.email;
 
-  return {
+  const data: ReportData = {
     runId: run.id,
     status: run.status,
     startedAt: run.started_at ?? null,
@@ -414,6 +394,8 @@ export async function loadReportData(
       : null,
     selfAssessment: (run.self_assessment_json ?? {}) as Record<string, string>,
   };
+
+  return { ok: true, data };
 }
 
 // ─── Re-exports for convenience ──────────────────────────────────────────────

@@ -7,6 +7,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 
 export async function DELETE(
   _request: Request,
@@ -24,13 +25,11 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: adminRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Resolve public.users by email first: auth.users.id and public.users.id
+  // differ for legacy accounts, so an id-only lookup 403s a real admin.
+  const viewer = await resolvePublicUser(supabase, user);
 
-  if (!adminRow || adminRow.role !== "admin") {
+  if (!viewer || viewer.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -43,7 +42,11 @@ export async function DELETE(
     .eq("cohort_id", params.cohortId);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Supabase write failed:", error.message);
+    return NextResponse.json(
+      { error: "The change could not be saved. Please try again." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ ok: true });

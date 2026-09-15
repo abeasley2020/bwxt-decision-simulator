@@ -25,7 +25,9 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { firstOf } from "@/lib/supabase/relations";
 import ExportButton from "./ExportButton";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -61,14 +63,10 @@ export default async function ReadinessPage({
 
   // ── Role check ──────────────────────────────────────────────────────────────
 
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  const viewer = await resolvePublicUser(supabase, user);
 
-  if (!userRow || userRow.role !== "admin") {
-    redirect(userRow?.role === "faculty" ? "/faculty/dashboard" : "/simulation");
+  if (!viewer || viewer.role !== "admin") {
+    redirect(viewer?.role === "faculty" ? "/faculty/dashboard" : "/simulation");
   }
 
   // Admin role confirmed — use service-role client for membership/user/runs
@@ -93,12 +91,22 @@ export default async function ReadinessPage({
     .eq("cohort_id", params.cohortId)
     .eq("cohort_role", "participant");
 
-  type MemberRow = {
-    user_id: string;
-    users: Array<{ id: string; first_name: string; last_name: string; email: string }>;
+  type MemberUser = {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
   };
 
-  const participantIds = (memberships as MemberRow[] ?? []).map((m) => m.user_id);
+  // PostgREST returns an embedded one-to-one relation as either an object or a
+  // single-element array depending on the query shape. Normalise with firstOf.
+  type MemberRow = {
+    user_id: string;
+    users: MemberUser | MemberUser[] | null;
+  };
+
+  const memberRows: MemberRow[] = memberships ?? [];
+  const participantIds = memberRows.map((m) => m.user_id);
 
   const { data: runs } =
     participantIds.length > 0
@@ -135,9 +143,9 @@ export default async function ReadinessPage({
 
   // ── Build rows ────────────────────────────────────────────────────────────
 
-  const rows = (memberships as MemberRow[] ?? [])
+  const rows = memberRows
     .map((m) => {
-      const u = m.users[0] ?? null;
+      const u = firstOf(m.users);
       const run = runsByUser.get(m.user_id);
       const status: "completed" | "in_progress" | "not_started" =
         run?.status === "completed"
@@ -243,7 +251,7 @@ export default async function ReadinessPage({
               key={label}
               className="bg-white border border-gray-200 rounded-lg p-4"
             >
-              <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+              <div className="text-xs text-gray-600 uppercase tracking-wide mb-1">
                 {label}
               </div>
               <div
@@ -274,12 +282,12 @@ export default async function ReadinessPage({
             className="h-3 bg-gray-100 rounded-full overflow-hidden"
           >
             <div
-              className="h-full bg-green-500 rounded-full transition-all"
+              className="h-full bg-green-800 rounded-full transition-all"
               style={{ width: `${pct}%` }}
             />
           </div>
           {total === 0 && (
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-gray-600 mt-2">
               No participants assigned to this cohort yet.
             </p>
           )}
@@ -315,7 +323,7 @@ export default async function ReadinessPage({
         </h2>
 
         {rows.length === 0 ? (
-          <div className="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-400 text-sm">
+          <div className="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-600 text-sm">
             No participants assigned to this cohort.
           </div>
         ) : (
@@ -373,7 +381,7 @@ export default async function ReadinessPage({
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-400 mt-0.5">
+                      <div className="text-xs text-gray-600 mt-0.5">
                         {row.email}
                       </div>
                     </td>

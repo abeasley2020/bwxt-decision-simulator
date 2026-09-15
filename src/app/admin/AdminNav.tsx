@@ -65,7 +65,7 @@ export default function AdminNav({ userName }: AdminNavProps) {
             fontFamily: "Inter, system-ui, sans-serif",
             fontWeight: 400,
             fontSize: "15px",
-            color: "rgba(255,255,255,0.45)",
+            color: "rgba(255,255,255,0.6)",
             marginLeft: "6px",
           }}
         >
@@ -224,7 +224,7 @@ export default function AdminNav({ userName }: AdminNavProps) {
             }}
           >
             {userName && (
-              <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.45)" }}>
+              <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.6)" }}>
                 {userName}
               </span>
             )}

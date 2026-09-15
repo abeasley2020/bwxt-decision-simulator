@@ -80,7 +80,11 @@ export async function POST(
     .eq("id", run.id);
 
   if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
+    console.error("Failed to start simulation run:", updateError.message);
+    return NextResponse.json(
+      { error: "Could not start your simulation. Please try again." },
+      { status: 500 }
+    );
   }
 
   // Record initial KPI snapshot

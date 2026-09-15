@@ -5,6 +5,7 @@
 
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 
 interface Props {
   params: { cohortId: string };
@@ -18,11 +19,15 @@ export default async function FacultyCohortPage({ params }: Props) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Verify faculty/admin role in this cohort
+  // Verify faculty/admin role in this cohort. cohort_memberships.user_id is a
+  // public.users.id, which is not the auth id for legacy accounts.
+  const viewer = await resolvePublicUser(supabase, user);
+  if (!viewer) notFound();
+
   const { data: membership } = await supabase
     .from("cohort_memberships")
     .select("cohort_role")
-    .eq("user_id", user.id)
+    .eq("user_id", viewer.id)
     .eq("cohort_id", params.cohortId)
     .maybeSingle();
 
@@ -73,7 +78,7 @@ export default async function FacultyCohortPage({ params }: Props) {
                 key={label}
                 className="bg-white border border-gray-200 rounded-lg p-5"
               >
-                <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+                <div className="text-xs text-gray-600 uppercase tracking-wide mb-1">
                   {label}
                 </div>
                 <div className="text-2xl font-bold text-brand-navy">—</div>
@@ -85,7 +90,7 @@ export default async function FacultyCohortPage({ params }: Props) {
         {/* Participant list placeholder */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
           <h2 className="font-semibold text-brand-navy mb-4">Participants</h2>
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-600 text-sm">
             [Participant completion table — Slice 3]
           </p>
         </div>
@@ -93,7 +98,7 @@ export default async function FacultyCohortPage({ params }: Props) {
         {/* Decision patterns placeholder */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <h2 className="font-semibold text-brand-navy mb-4">Decision Patterns</h2>
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-600 text-sm">
             [Cohort decision pattern heatmap — Slice 3]
           </p>
         </div>

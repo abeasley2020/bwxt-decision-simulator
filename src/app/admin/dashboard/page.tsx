@@ -16,6 +16,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
+import { firstOf } from "@/lib/supabase/relations";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -54,15 +56,11 @@ export default async function AdminDashboardPage() {
 
   // ── Role check ──────────────────────────────────────────────────────────────
 
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  const viewer = await resolvePublicUser(supabase, user);
 
-  if (!userRow) redirect("/login");
-  if (userRow.role === "faculty") redirect("/faculty/dashboard");
-  if (userRow.role === "participant") redirect("/simulation");
+  if (!viewer) redirect("/login");
+  if (viewer.role === "faculty") redirect("/faculty/dashboard");
+  if (viewer.role === "participant") redirect("/simulation");
 
   // ── Load all cohorts ─────────────────────────────────────────────────────
 
@@ -125,6 +123,9 @@ export default async function AdminDashboardPage() {
       )
       .eq("status", "completed")
       .eq("is_preview", false)
+      // Without this the service-role client returned the 5 most recent
+      // completed runs across every cohort in the database.
+      .in("cohort_id", cohortIds)
       .order("completed_at", { ascending: false })
       .limit(5);
 
@@ -139,8 +140,8 @@ export default async function AdminDashboardPage() {
     };
 
     recentReports = ((recentRuns ?? []) as RecentRow[]).map((r) => {
-      const u = Array.isArray(r.users) ? r.users[0] : r.users;
-      const c = Array.isArray(r.cohorts) ? r.cohorts[0] : r.cohorts;
+      const u = firstOf(r.users);
+      const c = firstOf(r.cohorts);
       const fullName =
         [u?.first_name, u?.last_name].filter(Boolean).join(" ") ||
         u?.email ||
@@ -177,7 +178,7 @@ export default async function AdminDashboardPage() {
       {/* ── Cohort list ─────────────────────────────────────────────────── */}
       {cohortList.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-          <p className="text-gray-400 text-sm mb-4">
+          <p className="text-gray-600 text-sm mb-4">
             No cohorts yet. Create one to get started.
           </p>
           <Link
@@ -311,7 +312,7 @@ export default async function AdminDashboardPage() {
 
         {recentReports.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-600 text-sm">
               No completed reports yet. Reports appear here once participants
               finish their simulation and submit the executive recommendation.
             </p>
@@ -335,7 +336,7 @@ export default async function AdminDashboardPage() {
                     {r.cohortName ? ` · ${r.cohortName}` : ""}
                   </div>
                 </div>
-                <div className="text-xs text-gray-400 tabular-nums whitespace-nowrap">
+                <div className="text-xs text-gray-600 tabular-nums whitespace-nowrap">
                   {formatDate(r.completedAt)}
                 </div>
                 <Link

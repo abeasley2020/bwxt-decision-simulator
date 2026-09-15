@@ -67,10 +67,38 @@ export default async function ParticipantReportPage({ params }: Props) {
     redirect(`/simulation/${run.id}/recommendation`);
   }
 
-  const data = await loadReportData(supabase, params.runId, {
+  const report = await loadReportData(supabase, params.runId, {
     requireUserId: userId,
   });
-  if (!data) notFound();
+
+  if (!report.ok) {
+    if (report.reason !== "final_data_unavailable") notFound();
+    return (
+      <main className="max-w-3xl mx-auto px-6 py-12">
+        <Link
+          href={`/simulation/${params.runId}/complete`}
+          className="text-[13px] text-bwxt-text-secondary hover:text-bwxt-navy focus:outline-none focus:ring-2 focus:ring-bwxt-navy rounded"
+        >
+          ← Back to Completion Summary
+        </Link>
+        <div
+          role="alert"
+          className="mt-6 bg-white border-2 border-bwxt-crimson rounded-xl p-8"
+        >
+          <h1 className="text-bwxt-navy font-bold text-lg mb-2">
+            Report unavailable
+          </h1>
+          <p className="text-[15px] text-bwxt-text-secondary leading-relaxed">
+            Your final performance data could not be loaded, so the report
+            cannot be produced. Your decisions are saved. Please contact your
+            program administrator so this can be resolved.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  const data = report.data;
 
   return (
     <div className="min-h-screen bg-bwxt-bg pb-12 print:bg-white print:pb-0">

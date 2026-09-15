@@ -70,12 +70,25 @@ export default async function SimulationPage() {
   // The invite flow now creates the simulation_run at provisioning time, so
   // this path is a fallback for edge cases (e.g. run deleted, old data).
 
-  const { data: membership } = await supabase
+  // A participant in two cohorts used to fall through to the "no cohort"
+  // holding page: maybeSingle() returns a PGRST116 error for multiple rows,
+  // and that error was discarded. Take the newest membership instead.
+  const { data: memberships, error: membershipError } = await supabase
     .from("cohort_memberships")
     .select("cohort_id")
     .eq("user_id", userId)
     .in("invitation_status", ["accepted", "pending"])
-    .maybeSingle();
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (membershipError) {
+    console.error(
+      "Failed to load cohort membership for participant:",
+      membershipError.message
+    );
+  }
+
+  const membership = memberships?.[0] ?? null;
 
   if (membership) {
     const { data: cohort } = await supabase

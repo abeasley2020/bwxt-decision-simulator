@@ -251,12 +251,24 @@ export async function POST(
 
   // ─── Look up DB IDs ─────────────────────────────────────────────────────────
 
-  const { data: scenarioRound } = await supabase
+  // Load this round and the previous one together. The previous round's id is
+  // what pins the baseline snapshot below.
+  const wantedRoundNumbers =
+    roundNumber === 1 ? [1] : [roundNumber - 1, roundNumber];
+
+  const { data: scenarioRoundRows } = await supabase
     .from("scenario_rounds")
-    .select("id")
+    .select("id, round_number")
     .eq("scenario_version_id", run.scenario_version_id)
-    .eq("round_number", roundNumber)
-    .maybeSingle();
+    .in("round_number", wantedRoundNumbers);
+
+  const roundIdByNumber = new Map<number, string>(
+    (scenarioRoundRows ?? []).map((r) => [r.round_number as number, r.id as string])
+  );
+
+  const scenarioRound = roundIdByNumber.has(roundNumber)
+    ? { id: roundIdByNumber.get(roundNumber)! }
+    : null;
 
   if (!scenarioRound) {
     return NextResponse.json(
@@ -294,22 +306,35 @@ export async function POST(
     baselineKPIs = (initialSnapshot?.kpi_values_json ?? buildInitialKPIs()) as KPIValues;
     baselineScores = buildInitialScores();
   } else {
+    // Target round N-1's snapshot by its scenario_round id. Ordering by
+    // captured_at picked whichever row had the latest client-supplied
+    // timestamp, which is not necessarily the previous round.
+    const prevRoundId = roundIdByNumber.get(roundNumber - 1);
+
+    if (!prevRoundId) {
+      return NextResponse.json(
+        {
+          error:
+            "Previous round not found in database. Ensure seed.sql has been applied.",
+        },
+        { status: 500 }
+      );
+    }
+
     const [prevKPISnap, prevScoreSnap] = await Promise.all([
       supabase
         .from("kpi_snapshots")
         .select("kpi_values_json")
         .eq("simulation_run_id", run.id)
+        .eq("scenario_round_id", prevRoundId)
         .eq("snapshot_type", "round_end")
-        .order("captured_at", { ascending: false })
-        .limit(1)
         .maybeSingle(),
       supabase
         .from("score_snapshots")
         .select("score_values_json")
         .eq("simulation_run_id", run.id)
+        .eq("scenario_round_id", prevRoundId)
         .eq("snapshot_type", "round_end")
-        .order("captured_at", { ascending: false })
-        .limit(1)
         .maybeSingle(),
     ]);
     baselineKPIs = (prevKPISnap.data?.kpi_values_json ?? buildInitialKPIs()) as KPIValues;
@@ -359,8 +384,9 @@ export async function POST(
         { status: 400 }
       );
     }
+    console.error("Failed to save decision responses:", responseError.message);
     return NextResponse.json(
-      { error: responseError.message },
+      { error: "Could not save your responses. Please try again." },
       { status: 500 }
     );
   }
@@ -375,22 +401,60 @@ export async function POST(
     captured_at: now,
   });
 
-  if (kpiError) {
-    console.error("Failed to save KPI snapshot:", kpiError.message);
-  }
-
   // ─── Save score snapshot (round_end) ─────────────────────────────────────────
 
-  const { error: scoreError } = await supabase.from("score_snapshots").insert({
-    simulation_run_id: params.runId,
-    scenario_round_id: scenarioRound.id,
-    snapshot_type: "round_end",
-    score_values_json: effectResult.updatedScores,
-    captured_at: now,
-  });
+  let scoreError: { message: string } | null = null;
+  if (!kpiError) {
+    const scoreInsert = await supabase.from("score_snapshots").insert({
+      simulation_run_id: params.runId,
+      scenario_round_id: scenarioRound.id,
+      snapshot_type: "round_end",
+      score_values_json: effectResult.updatedScores,
+      captured_at: now,
+    });
+    scoreError = scoreInsert.error;
+  }
 
-  if (scoreError) {
-    console.error("Failed to save score snapshot:", scoreError.message);
+  // A missing snapshot is unrecoverable once the run advances: the unique
+  // constraint on decision_responses blocks a resubmit, and round N+1 would
+  // silently baseline off an older checkpoint, dropping this round's decisions
+  // from the score. Roll the responses back so the participant can retry.
+  if (kpiError || scoreError) {
+    console.error(
+      "Failed to save round snapshots:",
+      kpiError?.message ?? scoreError?.message
+    );
+
+    const [responseRollback, kpiRollback] = await Promise.all([
+      supabase
+        .from("decision_responses")
+        .delete()
+        .eq("simulation_run_id", params.runId)
+        .eq("scenario_round_id", scenarioRound.id),
+      // Drop a half-written KPI snapshot too, so a retry does not leave two
+      // round_end rows for the same round.
+      supabase
+        .from("kpi_snapshots")
+        .delete()
+        .eq("simulation_run_id", params.runId)
+        .eq("scenario_round_id", scenarioRound.id)
+        .eq("snapshot_type", "round_end"),
+    ]);
+
+    if (responseRollback.error || kpiRollback.error) {
+      console.error(
+        "Failed to roll back round writes after snapshot failure:",
+        responseRollback.error?.message ?? kpiRollback.error?.message
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          "Your round could not be saved. Please submit again, and contact your program administrator if this keeps happening.",
+      },
+      { status: 500 }
+    );
   }
 
   // ─── Advance simulation run ──────────────────────────────────────────────────

@@ -117,7 +117,10 @@ export async function POST(
     });
     if (error) {
       console.error(`[invite] Step 1 FAILED: ${error.message}`);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: "Could not create the account. Please try again." },
+        { status: 500 }
+      );
     }
     authUser = data.user;
     tempPassword = newPassword;
@@ -150,7 +153,10 @@ export async function POST(
     });
     if (error) {
       console.error(`[invite] Step 2 FAILED: ${error.message}`);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: "Could not create the user record. Please try again." },
+        { status: 500 }
+      );
     }
     console.log(`[invite] Step 2: created public.users record`);
   } else {
@@ -219,7 +225,10 @@ export async function POST(
 
   if (memberError) {
     console.error(`[invite] Step 3 FAILED: ${memberError.message}`);
-    return NextResponse.json({ error: memberError.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Could not add the member to this cohort. Please try again." },
+      { status: 500 }
+    );
   }
   console.log(`[invite] Step 3: created cohort membership`);
 
@@ -254,7 +263,13 @@ export async function POST(
           });
         if (runError) {
           console.error(`[invite] Step 4 FAILED: ${runError.message}`);
-          return NextResponse.json({ error: runError.message }, { status: 500 });
+          return NextResponse.json(
+            {
+              error:
+                "Could not create the participant's simulation run. Please try again.",
+            },
+            { status: 500 }
+          );
         }
         console.log(`[invite] Step 4: created simulation run`);
       }

@@ -21,6 +21,10 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import {
+  resolvePublicUser,
+  isFacultyOrAdmin,
+} from "@/lib/auth/resolvePublicUser";
 import { getActiveFacultyCohort } from "@/lib/faculty/getActiveFacultyCohort";
 import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
@@ -105,19 +109,17 @@ export default async function ParticipantDetailPage({ params }: Props) {
 
   // ── Role check ──────────────────────────────────────────────────────────────
 
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Allow-list, not deny-list: an unknown or future role must be refused,
+  // not admitted by default. Resolve by email first, per CLAUDE.md.
+  const viewer = await resolvePublicUser(supabase, user);
 
-  if (!userRow || userRow.role === "participant") {
+  if (!viewer || !isFacultyOrAdmin(viewer.role)) {
     redirect("/simulation");
   }
 
   // ── Cohort selection ────────────────────────────────────────────────────────
 
-  const cohort = await getActiveFacultyCohort(supabase, user.id);
+  const cohort = await getActiveFacultyCohort(supabase, viewer.id);
   if (!cohort) notFound();
 
   // ── Verify participant belongs to this cohort ─────────────────────────────
@@ -172,7 +174,7 @@ export default async function ParticipantDetailPage({ params }: Props) {
           </h1>
           <p className="text-gray-500 text-sm">{participantUser.email}</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-10 text-center text-gray-400 text-sm">
+        <div className="bg-white border border-gray-200 rounded-lg p-10 text-center text-gray-600 text-sm">
           This participant has not started the simulation yet.
         </div>
       </main>
@@ -445,7 +447,7 @@ export default async function ParticipantDetailPage({ params }: Props) {
           </h1>
           <p className="text-gray-500 text-sm mt-0.5">{participantUser.email}</p>
           {run.completed_at && (
-            <p className="text-gray-400 text-xs mt-1">
+            <p className="text-gray-600 text-xs mt-1">
               Completed {formatDate(run.completed_at)}
             </p>
           )}
@@ -576,7 +578,7 @@ export default async function ParticipantDetailPage({ params }: Props) {
                     <span className="text-2xl font-bold text-brand-navy tabular-nums">
                       {final}
                     </span>
-                    <span className="text-xs text-gray-400">/ 100</span>
+                    <span className="text-xs text-gray-600">/ 100</span>
                   </div>
                   <div
                     role="progressbar"
@@ -597,7 +599,7 @@ export default async function ParticipantDetailPage({ params }: Props) {
                         ? "text-green-700"
                         : isNeg
                         ? "text-red-700"
-                        : "text-gray-400"
+                        : "text-gray-600"
                     }`}
                     aria-label={deltaText}
                   >
@@ -905,7 +907,7 @@ export default async function ParticipantDetailPage({ params }: Props) {
                       </>
                     ) : (
                       <span className="leading-relaxed">
-                        {value || <span className="text-gray-400">Not provided</span>}
+                        {value || <span className="text-gray-600">Not provided</span>}
                       </span>
                     )}
                   </dd>

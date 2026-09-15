@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 
 export default async function AdminOverviewPage() {
   const supabase = createClient();
@@ -16,6 +17,14 @@ export default async function AdminOverviewPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Role gate. App Router layouts do not re-render on client-side navigation,
+  // so the admin layout is not an authorization boundary; check here too.
+  const viewer = await resolvePublicUser(supabase, user);
+  if (!viewer) redirect("/login");
+  if (viewer.role !== "admin") {
+    redirect(viewer.role === "faculty" ? "/faculty/dashboard" : "/simulation");
+  }
 
   // Quick stats
   const [cohortsRes, participantsRes, completedRes] = await Promise.all([

@@ -14,7 +14,9 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { firstOf } from "@/lib/supabase/relations";
 import StatusControls from "./StatusControls";
 import InviteForm from "./InviteForm";
 import RemoveMemberButton from "./RemoveMemberButton";
@@ -41,11 +43,20 @@ function formatDatetime(d: string | null): string {
   });
 }
 
+type MemberUser = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+};
+
+// PostgREST returns an embedded one-to-one relation as either an object or a
+// single-element array depending on the query shape. Normalise with firstOf.
 type MemberRow = {
   user_id: string;
   invitation_status: string;
   invited_at: string | null;
-  users: Array<{ id: string; first_name: string; last_name: string; email: string }>;
+  users: MemberUser | MemberUser[] | null;
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -66,14 +77,10 @@ export default async function CohortManagePage({
 
   // ── Role check ──────────────────────────────────────────────────────────────
 
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  const viewer = await resolvePublicUser(supabase, user);
 
-  if (!userRow || userRow.role !== "admin") {
-    redirect(userRow?.role === "faculty" ? "/faculty/dashboard" : "/simulation");
+  if (!viewer || viewer.role !== "admin") {
+    redirect(viewer?.role === "faculty" ? "/faculty/dashboard" : "/simulation");
   }
 
   // Admin role confirmed — use the service-role client for membership/user
@@ -115,9 +122,11 @@ export default async function CohortManagePage({
 
   // ── Load simulation runs for participant status ────────────────────────────
 
-  const participantIds = (participantMembershipsRes.data as MemberRow[] ?? []).map(
-    (m) => m.user_id
-  );
+  const participantMemberships: MemberRow[] =
+    participantMembershipsRes.data ?? [];
+  const facultyMemberships: MemberRow[] = facultyMembershipsRes.data ?? [];
+
+  const participantIds = participantMemberships.map((m) => m.user_id);
 
   const { data: runsData } =
     participantIds.length > 0
@@ -138,8 +147,8 @@ export default async function CohortManagePage({
 
   // ── Build display data ────────────────────────────────────────────────────
 
-  const participants = (participantMembershipsRes.data as MemberRow[] ?? []).map((m) => {
-    const u = m.users[0] ?? null;
+  const participants = participantMemberships.map((m) => {
+    const u = firstOf(m.users);
     const run = runsByUser.get(m.user_id);
     const simStatus: string = run?.status ?? "not_started";
     // Treat first_name as meaningful only if it isn't just the email prefix
@@ -156,8 +165,8 @@ export default async function CohortManagePage({
     };
   });
 
-  const faculty = (facultyMembershipsRes.data as MemberRow[] ?? []).map((m) => {
-    const u = m.users[0] ?? null;
+  const faculty = facultyMemberships.map((m) => {
+    const u = firstOf(m.users);
     const emailPrefix = u?.email?.split("@")[0] ?? "";
     const hasRealName = u?.first_name && u.first_name !== emailPrefix;
     const fullName = hasRealName ? `${u!.first_name} ${u!.last_name}`.trim() : "";
@@ -174,9 +183,9 @@ export default async function CohortManagePage({
 
   const sv = scenarioVersionRes.data;
   const scenarioTitle = sv
-    ? Array.isArray(sv.scenarios)
-      ? (sv.scenarios[0] as { title: string } | undefined)?.title
-      : (sv.scenarios as { title: string } | null)?.title
+    ? (firstOf(
+        sv.scenarios as { title: string } | Array<{ title: string }> | null
+      )?.title ?? null)
     : null;
   const versionLabel = sv
     ? `${scenarioTitle ? `${scenarioTitle} — ` : ""}${sv.version_label}`
@@ -254,7 +263,7 @@ export default async function CohortManagePage({
             {/* Details grid */}
             <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm mt-3">
               <div>
-                <dt className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">
+                <dt className="text-xs text-gray-600 uppercase tracking-wide mb-0.5">
                   Academy Start
                 </dt>
                 <dd className="font-medium text-gray-800">
@@ -262,7 +271,7 @@ export default async function CohortManagePage({
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">
+                <dt className="text-xs text-gray-600 uppercase tracking-wide mb-0.5">
                   Academy End
                 </dt>
                 <dd className="font-medium text-gray-800">
@@ -270,7 +279,7 @@ export default async function CohortManagePage({
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">
+                <dt className="text-xs text-gray-600 uppercase tracking-wide mb-0.5">
                   Simulator Deadline
                 </dt>
                 <dd className="font-medium text-gray-800 text-xs">
@@ -278,7 +287,7 @@ export default async function CohortManagePage({
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">
+                <dt className="text-xs text-gray-600 uppercase tracking-wide mb-0.5">
                   Scenario
                 </dt>
                 <dd className="font-medium text-gray-800 text-xs">
@@ -341,7 +350,7 @@ export default async function CohortManagePage({
               className="text-base font-bold text-brand-navy"
             >
               Participants
-              <span className="ml-2 text-gray-400 font-normal text-sm">
+              <span className="ml-2 text-gray-600 font-normal text-sm">
                 ({participants.length})
               </span>
             </h2>
@@ -418,7 +427,7 @@ export default async function CohortManagePage({
                             })
                           : "—"}
                       </td>
-                      <td className="px-5 py-3 text-gray-400 text-xs tabular-nums">
+                      <td className="px-5 py-3 text-gray-600 text-xs tabular-nums">
                         {p.invitedAt
                           ? new Date(p.invitedAt).toLocaleDateString("en-US", {
                               month: "short",
@@ -455,7 +464,7 @@ export default async function CohortManagePage({
               </table>
             </div>
           ) : (
-            <div className="px-5 py-8 text-center text-gray-400 text-sm">
+            <div className="px-5 py-8 text-center text-gray-600 text-sm">
               No participants assigned yet.
             </div>
           )}
@@ -475,7 +484,7 @@ export default async function CohortManagePage({
               className="text-base font-bold text-brand-navy"
             >
               Faculty
-              <span className="ml-2 text-gray-400 font-normal text-sm">
+              <span className="ml-2 text-gray-600 font-normal text-sm">
                 ({faculty.length})
               </span>
             </h2>
@@ -543,7 +552,7 @@ export default async function CohortManagePage({
                             : "Pending"}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-gray-400 text-xs tabular-nums">
+                      <td className="px-5 py-3 text-gray-600 text-xs tabular-nums">
                         {f.invitedAt
                           ? new Date(f.invitedAt).toLocaleDateString("en-US", {
                               month: "short",
@@ -565,7 +574,7 @@ export default async function CohortManagePage({
               </table>
             </div>
           ) : (
-            <div className="px-5 py-8 text-center text-gray-400 text-sm">
+            <div className="px-5 py-8 text-center text-gray-600 text-sm">
               No faculty assigned yet.
             </div>
           )}

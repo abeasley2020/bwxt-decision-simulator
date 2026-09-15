@@ -25,6 +25,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import {
+  resolvePublicUser,
+  isFacultyOrAdmin,
+} from "@/lib/auth/resolvePublicUser";
 import { getActiveFacultyCohort } from "@/lib/faculty/getActiveFacultyCohort";
 import { IRON_HORIZON_VERSION } from "@/content/iron-horizon";
 
@@ -73,19 +77,17 @@ export default async function DecisionPatternsPage() {
 
   // ── Role check ──────────────────────────────────────────────────────────────
 
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Allow-list, not deny-list: an unknown or future role must be refused,
+  // not admitted by default. Resolve by email first, per CLAUDE.md.
+  const viewer = await resolvePublicUser(supabase, user);
 
-  if (!userRow || userRow.role === "participant") {
+  if (!viewer || !isFacultyOrAdmin(viewer.role)) {
     redirect("/simulation");
   }
 
   // ── Cohort selection ────────────────────────────────────────────────────────
 
-  const cohort = await getActiveFacultyCohort(supabase, user.id);
+  const cohort = await getActiveFacultyCohort(supabase, viewer.id);
 
   if (!cohort) {
     return (
@@ -144,7 +146,7 @@ export default async function DecisionPatternsPage() {
           </h1>
           <p className="text-gray-500 text-sm">{cohort.name}</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-12 text-center text-gray-400 text-sm">
+        <div className="bg-white border border-gray-200 rounded-lg p-12 text-center text-gray-600 text-sm">
           No completions yet. Decision patterns will appear once participants
           finish the simulation.
         </div>
@@ -362,7 +364,7 @@ export default async function DecisionPatternsPage() {
                       >
                         {tp.title}
                       </h3>
-                      <p className="text-xs text-gray-400 mt-0.5 capitalize">
+                      <p className="text-xs text-gray-600 mt-0.5 capitalize">
                         {tp.decisionType === "resource_allocation"
                           ? "Resource allocation — showing average allocation per option"
                           : tp.decisionType === "multi_select"
@@ -455,7 +457,7 @@ export default async function DecisionPatternsPage() {
                                 </div>
                                 <span className="flex-shrink-0 text-sm font-bold text-brand-navy tabular-nums">
                                   {opt.count}{" "}
-                                  <span className="text-xs font-normal text-gray-400">
+                                  <span className="text-xs font-normal text-gray-600">
                                     ({opt.pct}%)
                                   </span>
                                 </span>

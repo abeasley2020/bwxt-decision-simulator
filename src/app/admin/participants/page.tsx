@@ -6,8 +6,18 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
+import { firstOf } from "@/lib/supabase/relations";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+
+type ParticipantUser = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+};
 
 function statusBadgeStyle(status: string): React.CSSProperties {
   if (status === "completed")
@@ -32,8 +42,21 @@ export default async function AdminParticipantsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Role gate. The admin layout is not an authorization boundary: App Router
+  // layouts do not re-render on client-side navigation, so every admin page
+  // carries its own check.
+  const viewer = await resolvePublicUser(supabase, user);
+  if (!viewer) redirect("/login");
+  if (viewer.role !== "admin") {
+    redirect(viewer.role === "faculty" ? "/faculty/dashboard" : "/simulation");
+  }
+
+  // Admin role confirmed — use the service-role client for the membership and
+  // run queries so RLS on `users` does not blank out the embedded join.
+  const supabaseAdmin = createAdminClient();
+
   // Load all participant memberships with user info and latest run
-  const { data: memberships } = await supabase
+  const { data: memberships } = await supabaseAdmin
     .from("cohort_memberships")
     .select(
       `
@@ -53,14 +76,14 @@ export default async function AdminParticipantsPage() {
   const userIds = Array.from(
     new Set(
       memberList
-        .map((m) => (m.users as unknown as { id: string } | null)?.id)
+        .map((m) => firstOf(m.users as ParticipantUser | ParticipantUser[] | null)?.id)
         .filter(Boolean) as string[]
     )
   );
 
   const runsByUser: Record<string, { status: string }> = {};
   if (userIds.length > 0) {
-    const { data: runs } = await supabase
+    const { data: runs } = await supabaseAdmin
       .from("simulation_runs")
       .select("user_id, status")
       .in("user_id", userIds)
@@ -146,13 +169,12 @@ export default async function AdminParticipantsPage() {
             </thead>
             <tbody>
               {memberList.map((m) => {
-                const u = m.users as unknown as {
-                  id: string;
-                  first_name: string | null;
-                  last_name: string | null;
-                  email: string;
-                } | null;
-                const cohort = m.cohorts as unknown as { name: string } | null;
+                const u = firstOf(
+                  m.users as ParticipantUser | ParticipantUser[] | null
+                );
+                const cohort = firstOf(
+                  m.cohorts as { name: string } | Array<{ name: string }> | null
+                );
                 const fullName = u
                   ? [u.first_name, u.last_name].filter(Boolean).join(" ") || "—"
                   : "—";

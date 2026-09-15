@@ -18,10 +18,11 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { KPI_DEFINITIONS, buildInitialKPIs } from "@/engine/kpi";
+import { KPI_DEFINITIONS } from "@/engine/kpi";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
+import { loadRunSnapshots } from "@/lib/simulation/loadRunSnapshots";
+import { resolveRunProfile } from "@/lib/simulation/resolveRunProfile";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
-import type { KPIValues, PerformanceProfileKey } from "@/engine/types";
 
 interface Props {
   params: { runId: string };
@@ -62,39 +63,27 @@ export default async function CompletePage({ params }: Props) {
   }
 
   // ── Load final KPI snapshot ─────────────────────────────────────────────────
+  // Shared loader: a missing round-3 snapshot must surface as an explicit
+  // unavailable state, never as the hardcoded starting KPIs relabelled final.
 
-  const { data: scenarioRounds } = await supabase
-    .from("scenario_rounds")
-    .select("id, round_number")
-    .eq("scenario_version_id", run.scenario_version_id)
-    .eq("round_number", 3)
-    .maybeSingle();
+  const snapshots = await loadRunSnapshots(
+    supabase,
+    run.id,
+    run.scenario_version_id
+  );
 
-  const { data: finalKpiSnap } = scenarioRounds
-    ? await supabase
-        .from("kpi_snapshots")
-        .select("kpi_values_json")
-        .eq("simulation_run_id", run.id)
-        .eq("scenario_round_id", scenarioRounds.id)
-        .eq("snapshot_type", "round_end")
-        .maybeSingle()
-    : { data: null };
-
-  const finalKPIs = (finalKpiSnap?.kpi_values_json ?? buildInitialKPIs()) as KPIValues;
+  const finalKPIs = snapshots.ok ? snapshots.final : null;
   const kpiList = Object.values(KPI_DEFINITIONS);
 
   // ── Assigned profile ────────────────────────────────────────────────────────
 
-  let profileKey: PerformanceProfileKey | null = null;
-
-  if (run.final_profile_id) {
-    const { data: dbProfile } = await supabase
-      .from("performance_profiles")
-      .select("key")
-      .eq("id", run.final_profile_id)
-      .maybeSingle();
-    profileKey = (dbProfile?.key as PerformanceProfileKey) ?? null;
-  }
+  const profileKey = snapshots.ok
+    ? await resolveRunProfile(supabase, run, {
+        finalKPIs: snapshots.final,
+        finalScores: snapshots.finalScores,
+        finalScoresAvailable: snapshots.finalScoresAvailable,
+      })
+    : null;
 
   const displayProfile =
     PERFORMANCE_PROFILES.find((p) => p.key === profileKey) ?? null;
@@ -214,6 +203,18 @@ export default async function CompletePage({ params }: Props) {
           >
             Final KPI Snapshot
           </h2>
+          {!finalKPIs ? (
+            <div
+              role="alert"
+              className="bg-white border-2 border-bwxt-crimson rounded-xl shadow-card p-6"
+            >
+              <p className="text-[15px] text-bwxt-text-secondary leading-relaxed">
+                Your final KPI values could not be loaded, so none are shown
+                here. Your decisions are saved. Please contact your program
+                administrator so this can be resolved.
+              </p>
+            </div>
+          ) : (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {kpiList.map((kpi) => {
               const value = finalKPIs[kpi.key] ?? kpi.defaultStartValue;
@@ -245,6 +246,7 @@ export default async function CompletePage({ params }: Props) {
               );
             })}
           </div>
+          )}
         </section>
 
         {/* ── What Happens Next ──────────────────────────────────────── */}

@@ -93,8 +93,35 @@ export default async function AdminReportPage({ params }: Props) {
     );
   }
 
-  const reportData = await loadReportData(admin, latestRun.id);
-  if (!reportData) notFound();
+  const report = await loadReportData(admin, latestRun.id);
+
+  if (!report.ok) {
+    if (report.reason !== "final_data_unavailable") notFound();
+    return (
+      <main className="max-w-3xl mx-auto px-6 py-12">
+        <Link
+          href="/admin/participants"
+          className="text-[13px] text-bwxt-text-secondary hover:text-bwxt-navy"
+        >
+          ← Back to Participants
+        </Link>
+        <div
+          role="alert"
+          className="mt-6 bg-white border-2 border-bwxt-crimson rounded-xl p-8"
+        >
+          <h1 className="text-bwxt-navy font-bold text-lg mb-2">{fullName}</h1>
+          <p className="text-[15px] text-bwxt-text-secondary leading-relaxed">
+            This run&apos;s final performance data could not be loaded, so the
+            report cannot be produced. The participant&apos;s decisions are
+            saved. Check that the run has a round 3 snapshot before reporting
+            on it.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  const reportData = report.data;
 
   return (
     <div className="min-h-screen bg-bwxt-bg pb-12 print:bg-white print:pb-0">

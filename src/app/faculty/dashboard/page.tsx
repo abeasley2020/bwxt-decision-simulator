@@ -16,6 +16,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import {
+  resolvePublicUser,
+  isFacultyOrAdmin,
+} from "@/lib/auth/resolvePublicUser";
 import { getActiveFacultyCohort } from "@/lib/faculty/getActiveFacultyCohort";
 import { KPI_DEFINITIONS } from "@/engine/kpi";
 import { SCORING_DIMENSIONS } from "@/engine/scoring";
@@ -78,19 +82,17 @@ export default async function FacultyDashboardPage() {
 
   // ── Role check ──────────────────────────────────────────────────────────────
 
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role, first_name, last_name")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Allow-list, not deny-list: an unknown or future role must be refused,
+  // not admitted by default. Resolve by email first, per CLAUDE.md.
+  const viewer = await resolvePublicUser(supabase, user);
 
-  if (!userRow || userRow.role === "participant") {
+  if (!viewer || !isFacultyOrAdmin(viewer.role)) {
     redirect("/simulation");
   }
 
   // ── Cohort selection ────────────────────────────────────────────────────────
 
-  const cohort = await getActiveFacultyCohort(supabase, user.id);
+  const cohort = await getActiveFacultyCohort(supabase, viewer.id);
 
   if (!cohort) {
     return (
@@ -306,7 +308,7 @@ export default async function FacultyDashboardPage() {
               key={label}
               className="bg-white border border-gray-200 rounded-lg p-4"
             >
-              <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+              <div className="text-xs text-gray-600 uppercase tracking-wide mb-1">
                 {label}
               </div>
               <div
@@ -339,12 +341,12 @@ export default async function FacultyDashboardPage() {
             className="h-3 bg-gray-100 rounded-full overflow-hidden"
           >
             <div
-              className="h-full bg-green-500 rounded-full transition-all"
+              className="h-full bg-green-800 rounded-full transition-all"
               style={{ width: `${completionRate}%` }}
             />
           </div>
           {total === 0 && (
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-gray-600 mt-2">
               No participants assigned to this cohort yet.
             </p>
           )}
@@ -406,7 +408,7 @@ export default async function FacultyDashboardPage() {
           >
             KPI Averages
           </h2>
-          <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-gray-400 text-sm">
+          <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-gray-600 text-sm">
             No completions yet. KPI averages will appear once participants
             finish the simulation.
           </div>
@@ -468,7 +470,7 @@ export default async function FacultyDashboardPage() {
           >
             Leadership Score Averages
           </h2>
-          <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-gray-400 text-sm">
+          <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-gray-600 text-sm">
             No completions yet.
           </div>
         </section>
@@ -535,7 +537,7 @@ export default async function FacultyDashboardPage() {
             </table>
           </div>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-gray-400 text-sm">
+          <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-gray-600 text-sm">
             No profiles assigned yet. Profiles appear once participants complete
             the simulation.
           </div>

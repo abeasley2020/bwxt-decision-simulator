@@ -16,7 +16,12 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import {
+  resolvePublicUser,
+  isFacultyOrAdmin,
+} from "@/lib/auth/resolvePublicUser";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { firstOf } from "@/lib/supabase/relations";
 import { getActiveFacultyCohort } from "@/lib/faculty/getActiveFacultyCohort";
 import { PERFORMANCE_PROFILES } from "@/content/iron-horizon/profiles";
 
@@ -55,13 +60,11 @@ export default async function ParticipantListPage() {
 
   // ── Role check ──────────────────────────────────────────────────────────────
 
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Allow-list, not deny-list: an unknown or future role must be refused,
+  // not admitted by default. Resolve by email first, per CLAUDE.md.
+  const viewer = await resolvePublicUser(supabase, user);
 
-  if (!userRow || userRow.role === "participant") {
+  if (!viewer || !isFacultyOrAdmin(viewer.role)) {
     redirect("/simulation");
   }
 
@@ -71,7 +74,7 @@ export default async function ParticipantListPage() {
 
   // ── Cohort selection ────────────────────────────────────────────────────────
 
-  const cohort = await getActiveFacultyCohort(supabase, user.id);
+  const cohort = await getActiveFacultyCohort(supabase, viewer.id);
 
   if (!cohort) {
     return (
@@ -97,14 +100,20 @@ export default async function ParticipantListPage() {
     supabaseAdmin.from("performance_profiles").select("id, key, label"),
   ]);
 
-  // Supabase embedded joins return arrays even for one-to-one FK relationships
-  const memberships: Array<{
+  // PostgREST returns an embedded one-to-one relation as either an object or a
+  // single-element array depending on the query shape. Normalise with firstOf.
+  type MemberUser = {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  type MemberRow = {
     user_id: string;
-    users: Array<{ id: string; first_name: string; last_name: string; email: string }>;
-  }> = (membershipsRes.data ?? []) as Array<{
-    user_id: string;
-    users: Array<{ id: string; first_name: string; last_name: string; email: string }>;
-  }>;
+    users: MemberUser | MemberUser[] | null;
+  };
+
+  const memberships: MemberRow[] = membershipsRes.data ?? [];
 
   const participantUserIds = memberships.map((m) => m.user_id);
 
@@ -141,8 +150,7 @@ export default async function ParticipantListPage() {
 
   const rows = memberships
     .map((m) => {
-      // Supabase embedded join returns an array; take first element
-      const u = m.users[0] ?? null;
+      const u = firstOf(m.users);
       const run = runsByUser.get(m.user_id);
       const status: "completed" | "in_progress" | "not_started" =
         run?.status === "completed"
@@ -208,7 +216,7 @@ export default async function ParticipantListPage() {
 
       {/* ── Participant table ────────────────────────────────────────────── */}
       {rows.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg p-10 text-center text-gray-400 text-sm">
+        <div className="bg-white border border-gray-200 rounded-lg p-10 text-center text-gray-600 text-sm">
           No participants have been assigned to this cohort yet.
         </div>
       ) : (
