@@ -1,5 +1,5 @@
 /**
- * Operation Iron Horizon — Round Consequence Content
+ * Operation Iron Horizon: Round Consequence Content
  *
  * Pre-authored narratives and stakeholder reactions revealed after each
  * round is submitted. Content is keyed by round number.

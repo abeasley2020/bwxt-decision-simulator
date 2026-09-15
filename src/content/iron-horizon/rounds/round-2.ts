@@ -1,5 +1,5 @@
 /**
- * Operation Iron Horizon — Round 2: Disruption
+ * Operation Iron Horizon: Round 2: Disruption
  *
  * Decisions: regulatory response, competitor threat, talent gap, operational stress
  */

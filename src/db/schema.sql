@@ -1,7 +1,20 @@
--- BWXT Enterprise Decision Simulator — Database Schema
+-- BWXT Enterprise Decision Simulator - Database Schema
 -- PostgreSQL (Supabase)
+--
+-- Reconciled against the live production database on 2026-09-15 via the
+-- PostgREST OpenAPI document (GET <project>/rest/v1/). Every table and column
+-- below matches production. See src/db/migrations/ for the drift that was
+-- found and the SQL that closes it on an already-deployed database.
+--
+-- This file is the FRESH-PROVISION schema. It does not enable row level
+-- security; apply src/db/policies.sql immediately after it. Without that file
+-- the public anon key can read and write every table.
 
 -- ─── Extensions ──────────────────────────────────────────────────────────────
+-- Supabase installs extensions into the `extensions` schema, so the live
+-- default on every uuid primary key reads `extensions.uuid_generate_v4()`.
+-- The unqualified form below resolves to the same function because Supabase
+-- puts `extensions` on the default search_path.
 create extension if not exists "uuid-ossp";
 
 -- ─── 1. Identity and Cohort Management ───────────────────────────────────────
@@ -181,6 +194,10 @@ create table simulation_runs (
   last_active_at       timestamptz,
   completed_at         timestamptz,
   created_at           timestamptz not null default now(),
+  -- Present in production since before 2026-09-15 but absent from every
+  -- schema artifact until now. Marks a run created for demo or preview
+  -- purposes so it can be excluded from cohort analytics.
+  is_preview           boolean not null default false,
   unique (user_id, cohort_id)
 );
 
@@ -196,6 +213,23 @@ create table decision_responses (
   unique (simulation_run_id, decision_template_id)
 );
 
+-- Snapshot tables.
+--
+-- The check constraints below list the snapshot types production currently
+-- allows. In practice only 'initial' and 'round_end' are ever written; no
+-- 'final' or 'post_decision' row exists and the application never creates one
+-- (confirmed 2026-09-15: kpi_snapshots = 8 initial + 16 round_end,
+-- score_snapshots = 16 round_end, zero of the other two in either table).
+-- Tightening the constraint to match that invariant is a deliberate decision,
+-- not applied here. See src/db/migrations/002_snapshot_type_tightening.sql.
+--
+-- Every read of these tables uses .maybeSingle(), which ERRORS when more than
+-- one row matches. A single duplicate would therefore permanently break that
+-- participant's results page. The unique indexes below make that impossible.
+-- A plain UNIQUE constraint would not be enough: 'initial' rows carry a null
+-- scenario_round_id, and Postgres treats nulls as distinct in a unique index,
+-- so two partial indexes are used instead.
+
 create table kpi_snapshots (
   id                uuid primary key default uuid_generate_v4(),
   simulation_run_id uuid not null references simulation_runs(id) on delete cascade,
@@ -205,6 +239,14 @@ create table kpi_snapshots (
   captured_at       timestamptz not null default now()
 );
 
+create unique index if not exists uq_kpi_snapshots_run_round_type
+  on kpi_snapshots (simulation_run_id, scenario_round_id, snapshot_type)
+  where scenario_round_id is not null;
+
+create unique index if not exists uq_kpi_snapshots_run_type_no_round
+  on kpi_snapshots (simulation_run_id, snapshot_type)
+  where scenario_round_id is null;
+
 create table score_snapshots (
   id                uuid primary key default uuid_generate_v4(),
   simulation_run_id uuid not null references simulation_runs(id) on delete cascade,
@@ -213,6 +255,14 @@ create table score_snapshots (
   score_values_json jsonb not null,
   captured_at       timestamptz not null default now()
 );
+
+create unique index if not exists uq_score_snapshots_run_round_type
+  on score_snapshots (simulation_run_id, scenario_round_id, snapshot_type)
+  where scenario_round_id is not null;
+
+create unique index if not exists uq_score_snapshots_run_type_no_round
+  on score_snapshots (simulation_run_id, snapshot_type)
+  where scenario_round_id is null;
 
 create table executive_recommendations (
   id                     uuid primary key default uuid_generate_v4(),
@@ -240,7 +290,7 @@ create table cohort_analytics_cache (
   unique (cohort_id)
 );
 
--- ─── 7. Future AI (placeholder — not used in MVP) ────────────────────────────
+-- ─── 7. Future AI (placeholder, not used in MVP) ────────────────────────────
 
 create table ai_generated_artifacts (
   id                     uuid primary key default uuid_generate_v4(),

@@ -1,5 +1,5 @@
 /**
- * Operation Iron Horizon — Round 3: AI Inflection
+ * Operation Iron Horizon: Round 3: AI Inflection
  *
  * Decisions: AI adoption, governance vs speed, modernization sequencing, workforce implications
  */

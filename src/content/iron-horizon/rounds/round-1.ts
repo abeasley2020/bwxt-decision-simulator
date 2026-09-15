@@ -1,5 +1,5 @@
 /**
- * Operation Iron Horizon — Round 1: Set Direction
+ * Operation Iron Horizon: Round 1: Set Direction
  *
  * Decisions: prioritization, capital allocation, talent deployment, communication
  */

@@ -51,7 +51,7 @@ Verified by 20k-path simulation: zero assignment differences under DB rules
 with and without traits. The defects were real but lived in the content layer:
 the DB-unseeded fallback path and the walkthrough.
 
-**Known divergence, intentional for now:** the DB rule set (`seed.sql`, what
+**Known divergence, intentional for now:** the DB rule set (`src/db/seed.sql`, what
 production uses) and the content rule set (`profiles.ts`, richer, trait-gated)
 are different rule systems. CLAUDE.md documents this.
 
@@ -64,6 +64,43 @@ headless journey simulation against the page's own ported engine plus live
 browser checks; artifact updated at its existing URL. Regeneration procedure
 and scripts live in the `tool-walkthrough-builder` skill (claude-skills repo).
 
+### Launch blockers found 2026-09-15 (schema, content and docs audit)
+
+1. **BLOCKER, not yet applied: there is no row level security in production.**
+   Tested with the public anon key and no session: it reads every table
+   including `users` and `invitations`, and PATCH and DELETE both returned
+   200. The anon key ships in the client bundle. The remediation is written
+   and committed as `src/db/policies.sql`, with verification, an anon-key
+   smoke test and a rollback block in its header. **It has not been applied;**
+   that is a manual step in the Supabase SQL editor. Rotate the anon key
+   afterwards.
+2. **Fixed in the repo:** `src/db/schema.sql` was missing `simulation_runs.is_preview`,
+   which exists in production. Reconciled against the live PostgREST schema;
+   that was the only column-level drift.
+3. **Fixed in the repo:** the snapshot tables had no uniqueness constraint
+   while every read uses `.maybeSingle()`, so one duplicate row would
+   permanently break a participant's results. Unique indexes are now in
+   `schema.sql` and in `src/db/migrations/001_snapshot_uniqueness.sql`, with a
+   de-duplication query. Production currently has zero duplicates.
+4. **Fixed in the repo:** the seeds and CLAUDE.md all named scenario version
+   `20000000-0000-0000-0000-000000000001`. Production's only version is
+   `fad1d4c9-a52b-42b2-96da-ff596aef7c86`. Following the documented seed
+   procedure against production would have created a *second* parallel
+   scenario version. The seeds now resolve the id by `version_label`.
+5. **Fixed in the repo:** Round 3's `decision_options` and
+   `decision_effect_rules` existed in production but in no file, applied by
+   hand and never committed, and `r3_workforce_comms` was missing from the
+   seed entirely. Captured in `src/db/seed-round-3.sql`.
+6. **Open decision:** Round 3 now demonstrably exists twice. The live DB
+   version and `src/content/iron-horizon/rounds/round-3.ts` differ in option
+   labels, prompts, decision type and effect values, and the DB has no hidden
+   traits for Round 3 at all. Participants experience the content version;
+   the DB rows are inert. An SME needs to pick the canonical one. See the
+   header of `src/db/seed-round-3.sql` for the itemised differences.
+7. **Open, operator action:** `RESEND_API_KEY` is set in the
+   environment and read by no code. It is a live unused credential and should
+   be revoked from Vercel.
+
 ### Carry-over from the 2026-05-07 session (verify before acting)
 
 - Manual SQL still pending in Supabase to patch two participant names that were
@@ -75,10 +112,22 @@ and scripts live in the `tool-walkthrough-builder` skill (claude-skills repo).
 
 ## Next Steps
 
-1. **Send the `/walkthrough` link to Jess, Andrea, and Mickey for review.** The
+1. **Apply `src/db/policies.sql` in the Supabase SQL editor, then rotate
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`.** Nothing else on this list matters until
+   participant data stops being world-readable and world-writable. Run the
+   before/after queries and the anon-key smoke test in that file's header, and
+   confirm a real participant with a run in progress can still submit a round.
+2. Apply `src/db/migrations/001_snapshot_uniqueness.sql`. Decide on
+   `002_snapshot_type_tightening.sql`, which is written but deliberately not
+   recommended for blind application.
+3. Revoke `RESEND_API_KEY` from the Vercel environment.
+4. Decide which Round 3 is canonical, the DB one or the content one, and
+   regenerate the other from it.
+5. **Send the `/walkthrough` link to Jess, Andrea, and Mickey for review.** The
    draft email is written; it needs the production domain substituted in.
-2. Commission the Round 3 consequence narrative from an SME.
-3. Decide whether the walkthrough needs a passphrase gate before wider circulation.
+6. Commission the Round 3 consequence narrative from an SME.
+7. Decide whether the walkthrough needs a passphrase gate before wider
+   circulation.
 
 ---
 

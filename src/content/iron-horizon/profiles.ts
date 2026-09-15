@@ -1,5 +1,5 @@
 /**
- * Operation Iron Horizon — Performance Profiles
+ * Operation Iron Horizon: Performance Profiles
  *
  * Eight predefined leadership archetypes with deterministic assignment rules.
  * Rules are evaluated in priority order. First match wins.

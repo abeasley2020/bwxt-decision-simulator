@@ -1,4 +1,4 @@
-# BWXT Enterprise Decision Simulator — Schema Map
+# BWXT Enterprise Decision Simulator: Schema Map
 
 This schema map defines the core data model for the MVP. It is organized into:
 1. Identity and cohort management
@@ -288,6 +288,7 @@ Key attributes:
 - last_active_at
 - completed_at
 - final_profile_id
+- is_preview (boolean, not null, default false)
 
 Relationships:
 - many-to-one with `users`
@@ -340,6 +341,15 @@ Relationships:
 Notes:
 - KPIs should be tracked over time, not just final state
 - supports consequence visibility and faculty analysis
+- **As built, only `initial` and `round_end` are ever written.** `final` and
+  `post_decision` are permitted by the check constraint but no code path
+  produces either, and production holds zero of both. Final values are round
+  3's `round_end`. Round N baselines come from round N-1's `round_end`.
+- Unique on `(simulation_run_id, scenario_round_id, snapshot_type)`, enforced
+  as two partial indexes because `initial` rows carry a null
+  `scenario_round_id`. Every read uses `.maybeSingle()`, which errors on more
+  than one match, so a duplicate row would permanently break that
+  participant's results.
 
 ---
 
@@ -357,7 +367,11 @@ Relationships:
 
 Notes:
 - supports evaluation logic and final profile assignment
-- can be final-only in MVP if needed, but round-level is preferable
+- **As built, only `round_end` is ever written.** The round-level option in the
+  line below is the one that shipped; `final` is unused and production holds
+  zero rows of it.
+- same uniqueness treatment as `kpi_snapshots`, for the same `.maybeSingle()`
+  reason
 
 ---
 

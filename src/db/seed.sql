@@ -1,28 +1,100 @@
--- BWXT Enterprise Decision Simulator — Seed Data
--- Run this after schema.sql in the Supabase SQL Editor.
--- All inserts are idempotent (ON CONFLICT DO NOTHING / DO UPDATE where noted).
+-- ============================================================================
+-- BWXT Enterprise Decision Simulator - Core Seed
+-- Operation Iron Horizon, version label v1.0
+-- ============================================================================
 --
--- Seeded UUIDs (stable for local development):
---   Scenario:         10000000-0000-0000-0000-000000000001
---   Scenario Version: 20000000-0000-0000-0000-000000000001
---   Round 1:          30000000-0000-0000-0000-000000000001
---   Round 2:          30000000-0000-0000-0000-000000000002
---   Round 3:          30000000-0000-0000-0000-000000000003
---   Template r1_prioritization:    40000000-0000-0000-0000-000000000001
---   Template r1_capital:           40000000-0000-0000-0000-000000000002
---   Template r1_talent_hoo:        40000000-0000-0000-0000-000000000003
---   Template r1_communication:     40000000-0000-0000-0000-000000000004
---   Template r2_regulatory:        40000000-0000-0000-0000-000000000005
---   Template r2_competitor:        40000000-0000-0000-0000-000000000006
---   Template r2_talent_gap:        40000000-0000-0000-0000-000000000007
---   Template r2_operational_stress:40000000-0000-0000-0000-000000000011
---   Template r3_ai_adoption:       40000000-0000-0000-0000-000000000008
---   Template r3_ai_governance:     40000000-0000-0000-0000-000000000009
---   Template r3_modernization:     40000000-0000-0000-0000-000000000010
---   Dev Cohort:       50000000-0000-0000-0000-000000000001
+-- APPLICATION ORDER
+-- -----------------
+-- Run these in the Supabase SQL editor, in this order. Each file is
+-- idempotent and safe to re-run.
 --
--- Round 2 Options: 60000000-0000-0000-0000-000000000016 through ...0028
--- Round 2 Rules:   70000000-0000-0000-0000-000000000055 through ...0090
+--   1. src/db/schema.sql           tables, indexes, triggers (fresh database only)
+--   2. src/db/policies.sql         row level security (REQUIRED, see below)
+--   3. src/db/seed.sql             THIS FILE: scenario, version, rounds, all 12
+--                                  decision templates, the 8 performance
+--                                  profiles and their rules
+--   4. src/db/seed-round-1.sql     Round 1 decision options and effect rules
+--   5. src/db/seed-round-2.sql     Round 2 decision options and effect rules
+--   6. src/db/seed-round-3.sql     Round 3 decision options and effect rules
+--   7. src/db/seed-verify.sql      row-count check, read the output
+--   8. src/db/seed-dev-cohort.sql  LOCAL AND STAGING ONLY, never production
+--
+-- On an existing database also apply src/db/migrations/ in numeric order.
+--
+-- WITHOUT STEP 2 the public anon key can read and write every table. That was
+-- verified against production on 2026-09-15. Do not skip it.
+--
+--
+-- SCENARIO VERSION RESOLUTION
+-- ---------------------------
+-- This seed does NOT hardcode a scenario_version UUID.
+--
+-- Earlier revisions of this file, of scripts/seed.sql, and of CLAUDE.md all
+-- named '20000000-0000-0000-0000-000000000001'. That is not the value
+-- production uses. Production's single scenario_versions row is
+-- 'fad1d4c9-a52b-42b2-96da-ff596aef7c86', created by the column default rather
+-- than by this seed. Following the old documented procedure against production
+-- would have inserted a SECOND, parallel scenario version and orphaned every
+-- existing run, rather than repairing anything.
+--
+-- The fix is to resolve the id by (scenario key, version_label) instead of
+-- naming it. That is what the target_version CTE below does, and it is why
+-- this file now works unchanged against production, a fresh local database, or
+-- a future v1.1.
+--
+-- The only UUIDs still written literally are the ones that ARE deterministic
+-- in production and are referenced by foreign keys from participant data:
+--
+--   Scenario rounds      30000000-0000-0000-0000-00000000000{1,2,3}
+--   Decision templates   40000000-0000-0000-0000-0000000000{01..12}
+--   Decision options     60000000-0000-0000-0000-0000000000{01..42}
+--   Effect rules         70000000-0000-0000-0000-000000000{001..130}
+--   Performance profiles 80000000-0000-0000-0000-00000000000{1..8}
+--   Profile rules        90000000-0000-0000-0000-00000000000{1..8}
+--
+-- Numbering, verified against production:
+--   Round 1   options 0001-0015   rules 001-054
+--   Round 2   options 0016-0028   rules 055-090
+--   Round 3   options 0029-0042   rules 091-130
+--
+--
+-- WHAT THE APPLICATION ACTUALLY READS FROM THESE TABLES
+-- ----------------------------------------------------
+-- Worth knowing before spending time on the prose below. The running app
+-- selects only id and round_number from scenario_rounds, and only id, key and
+-- scenario_round_id from decision_templates. It never queries decision_options
+-- or decision_effect_rules at all. Every piece of narrative text and every
+-- scoring effect comes from the authored content layer in
+-- src/content/iron-horizon, which the API routes import directly.
+--
+-- So the text columns seeded here are documentation and future-proofing, not
+-- product surface. What genuinely matters to a running system is the
+-- decision_templates ids and keys, because decision_responses carries a
+-- foreign key to them.
+--
+-- kpi_definitions and scoring_dimensions are deliberately not seeded. Both are
+-- empty in production and the engine defines the two sets in code
+-- (src/engine/kpi.ts, src/engine/scoring.ts).
+--
+--
+-- SOURCE OF THIS FILE
+-- -------------------
+-- Regenerated 2026-09-15 from the live production database, so it reproduces
+-- production exactly. It supersedes three overlapping artifacts that
+-- previously disagreed with one another:
+--
+--   src/db/seed.sql          rounds, R1/R2/R3 templates (only 3 of Round 3's
+--                            4), Round 2 options and rules, a dev cohort, and
+--                            the profiles. Wrong scenario version UUID.
+--   scripts/seed.sql         Round 1 options and rules. Same wrong UUID.
+--   scripts/seed-round2.sql  Round 2. The only file with the correct UUID.
+--
+-- Round 3's decision options and effect rules existed in NO file in the
+-- repository. They were applied to production by hand and never committed.
+-- They are now captured in src/db/seed-round-3.sql.
+--
+-- ============================================================================
+
 
 -- ─── Scenario ────────────────────────────────────────────────────────────────
 
@@ -34,384 +106,196 @@ VALUES (
   'A 90-day executive leadership simulation for BWXT Leadership Academy.'
 ) ON CONFLICT (key) DO NOTHING;
 
--- ─── Scenario Version ─────────────────────────────────────────────────────────
+
+-- ─── Scenario version ────────────────────────────────────────────────────────
+--
+-- ON CONFLICT (scenario_id, version_label) DO NOTHING leaves production's
+-- existing fad1d4c9 row exactly as it is, including its own id. A fresh
+-- database gets a server-generated uuid instead. Either way everything below
+-- resolves through target_version, so neither case needs a literal.
+--
+-- intro_content and outro_content are null in production. They are set here
+-- for completeness only; no code reads them. The orientation page renders from
+-- src/content/iron-horizon/scenario.ts.
 
 INSERT INTO scenario_versions (
-  id, scenario_id, version_label, is_active,
+  scenario_id, version_label, is_active,
   intro_content, outro_content, estimated_duration_minutes
 )
-VALUES (
-  '20000000-0000-0000-0000-000000000001',
-  '10000000-0000-0000-0000-000000000001',
-  'v1.0',
-  true,
+SELECT s.id, 'v1.0', true,
   'You have just been named Acting President of BWXT''s largest operating division.',
   'Your simulation is complete. Your decisions have been scored across seven leadership dimensions.',
   105
-) ON CONFLICT (scenario_id, version_label) DO NOTHING;
+FROM scenarios s
+WHERE s.key = 'operation_iron_horizon'
+ON CONFLICT (scenario_id, version_label) DO NOTHING;
 
--- ─── Scenario Rounds ──────────────────────────────────────────────────────────
 
+-- ─── Scenario rounds ─────────────────────────────────────────────────────────
+--
+-- ON CONFLICT (id) DO UPDATE reconciles a row whose content was edited by
+-- hand, and re-points scenario_version_id if it was ever wrong.
+--
+-- Caveat worth knowing: scenario_rounds also carries
+-- unique (scenario_version_id, round_number), and decision_templates carries
+-- unique (scenario_round_id, key). If a database somehow holds a round or
+-- template with the right natural key but a DIFFERENT uuid, the ON CONFLICT
+-- (id) clause will not catch it and the statement fails on the other
+-- constraint instead. That is the correct outcome: it means the ids diverged
+-- and participant foreign keys point at rows this seed does not describe, so
+-- it needs a human. Production's ids match these literals exactly (verified
+-- 2026-09-15), and a fresh database has no rows at all, so neither case
+-- triggers it in practice.
+
+WITH target_version AS (
+  SELECT v.id
+  FROM scenario_versions v
+  JOIN scenarios s ON s.id = v.scenario_id
+  WHERE s.key = 'operation_iron_horizon'
+    AND v.version_label = 'v1.0'
+)
 INSERT INTO scenario_rounds (
   id, scenario_version_id, round_number, title, description,
   briefing_content, event_content, sort_order
 )
-VALUES
-  (
-    '30000000-0000-0000-0000-000000000001',
-    '20000000-0000-0000-0000-000000000001',
-    1,
-    'Set Direction',
-    'Establish your leadership priorities in the first 30 days.',
-    'It''s Day 1. You''ve received your first executive briefing. Q1 revenue is tracking 6% below plan. The Safety team has flagged two open non-conformances. Your Head of Operations has tendered a conditional resignation. The Board expects a clear direction memo within 72 hours.',
-    'The Board''s Operating Committee has convened an emergency call. They want to know your top priorities for the next 90 days and how you are allocating the available discretionary budget of $20M.',
-    1
-  ),
-  (
-    '30000000-0000-0000-0000-000000000002',
-    '20000000-0000-0000-0000-000000000001',
-    2,
-    'Disruption',
-    'Navigate compounding external and internal shocks at Day 45.',
-    'Three simultaneous disruptions have hit the division. A federal regulator has issued a preliminary inquiry into a safety documentation gap. A well-funded competitor has announced entry into your core defense market. Two direct reports are disengaged. Operational throughput has dropped 8%.',
-    'The Board''s Audit Committee chair has called an emergency briefing in 48 hours. You must have a response posture ready across all four disruptions before that call.',
-    2
-  ),
-  (
-    '30000000-0000-0000-0000-000000000003',
-    '20000000-0000-0000-0000-000000000001',
-    3,
-    'AI Inflection',
-    'Lead through a technology disruption in the final 30 days.',
-    'The Board has asked for a position on AI integration. Your competitors are moving fast. Your workforce has concerns. The window to act is 30 days.',
-    'The Chief Digital Officer has put a proposal on your desk: a $15M AI pilot program that could transform operations — or expose the division to new risks.',
-    3
-  )
-ON CONFLICT (scenario_version_id, round_number) DO NOTHING;
+SELECT r.id, v.id, r.round_number, r.title, r.description,
+       r.briefing_content, r.event_content, r.sort_order
+FROM target_version v
+CROSS JOIN (VALUES
+  ('30000000-0000-0000-0000-000000000001'::uuid, 1, 'Set Direction',
+   'Establish your leadership priorities in the first 30 days.',
+   'It''s Day 1. You''ve received your first executive briefing.
 
--- ─── Decision Templates — Round 1 ─────────────────────────────────────────────
+Key facts:
+- Q1 revenue is tracking 6% below plan due to delayed defense contract closeouts
+- The Safety & Compliance team has flagged two open non-conformances ahead of the audit
+- Digital Transformation Program is requesting an emergency budget increase of $12M
+- Your Head of Operations has tendered a conditional resignation — she will stay if given expanded authority
 
-INSERT INTO decision_templates (
-  id, scenario_round_id, key, title, prompt,
-  decision_type, min_choices, max_choices, is_required, sort_order
-)
-VALUES
-  (
-    '40000000-0000-0000-0000-000000000001',
-    '30000000-0000-0000-0000-000000000001',
-    'r1_prioritization',
-    '90-Day Priority Focus',
-    'Select your top two priorities for the next 90 days.',
-    'multi_select', 2, 2, true, 1
-  ),
-  (
-    '40000000-0000-0000-0000-000000000002',
-    '30000000-0000-0000-0000-000000000001',
-    'r1_capital',
-    'Discretionary Budget Allocation',
-    'You have $20M in discretionary budget to allocate across four areas.',
-    'resource_allocation', null, null, true, 2
-  ),
-  (
-    '40000000-0000-0000-0000-000000000003',
-    '30000000-0000-0000-0000-000000000001',
-    'r1_talent_hoo',
-    'Head of Operations: Retention Decision',
-    'How do you respond to the Head of Operations retention situation?',
-    'single_select', null, null, true, 3
-  ),
-  (
-    '40000000-0000-0000-0000-000000000004',
-    '30000000-0000-0000-0000-000000000001',
-    'r1_communication',
-    'First Leadership Communication',
-    'What is the primary tone and content of your opening all-hands communication?',
-    'single_select', null, null, true, 4
-  )
-ON CONFLICT (scenario_round_id, key) DO NOTHING;
+The Board expects a clear direction memo within 72 hours.
+You must make four decisions now.',
+   'The Board''s Operating Committee has convened an emergency call.
+They want to know: What are your top priorities for the next 90 days,
+and how are you allocating the available discretionary budget of $20M?',
+   1),
+  ('30000000-0000-0000-0000-000000000002'::uuid, 2, 'Disruption',
+   'Navigate compounding external and internal shocks at Day 45.',
+   'Three simultaneous disruptions have hit the division. A federal regulator has issued a preliminary inquiry into a safety documentation gap. A well-funded competitor has announced entry into your core defense market. Two direct reports are disengaged. Operational throughput has dropped 8%.',
+   'The Board''s Audit Committee chair has called an emergency briefing in 48 hours. You must have a response posture ready across all four disruptions before that call.',
+   2),
+  ('30000000-0000-0000-0000-000000000003'::uuid, 3, 'AI Inflection',
+   'Navigate the AI adoption decision at Day 90.',
+   'The division is 90 days in. The AI vendor pilot offer expires in 10 days. The Board wants a definitive position on AI adoption, governance, and workforce implications.',
+   'The CEO has sent you a direct message: "I need to know if we''re leading on AI or reacting. Give me your definitive position."',
+   3)
+) AS r (id, round_number, title, description, briefing_content, event_content, sort_order)
+ON CONFLICT (id) DO UPDATE SET
+  scenario_version_id = EXCLUDED.scenario_version_id,
+  round_number        = EXCLUDED.round_number,
+  title               = EXCLUDED.title,
+  description         = EXCLUDED.description,
+  briefing_content    = EXCLUDED.briefing_content,
+  event_content       = EXCLUDED.event_content,
+  sort_order          = EXCLUDED.sort_order;
 
--- ─── Decision Templates — Round 2 ─────────────────────────────────────────────
--- ON CONFLICT (id) DO UPDATE to allow re-running when keys have changed.
+
+-- ─── Decision templates, all three rounds ────────────────────────────────────
+--
+-- All 12. The previous src/db/seed.sql seeded only 3 of Round 3's 4. The
+-- fourth, r3_workforce_comms (40000000-...0012), existed in production but in
+-- no committed file.
+--
+-- ON CONFLICT (id) DO UPDATE rather than DO NOTHING, so re-running this file
+-- reconciles a template whose text or type was edited by hand.
 
 INSERT INTO decision_templates (
   id, scenario_round_id, key, title, prompt,
   decision_type, min_choices, max_choices, is_required, sort_order
 )
 VALUES
-  (
-    '40000000-0000-0000-0000-000000000005',
-    '30000000-0000-0000-0000-000000000002',
-    'r2_regulatory',
-    'Regulatory Response',
-    'A federal regulator has issued a preliminary inquiry into a safety documentation gap. How do you respond?',
-    'single_select', null, null, true, 1
-  ),
-  (
-    '40000000-0000-0000-0000-000000000006',
-    '30000000-0000-0000-0000-000000000002',
-    'r2_competitor',
-    'Competitor Threat Response',
-    'A well-funded competitor has announced entry into your core defense market. How do you respond?',
-    'single_select', null, null, true, 2
-  ),
-  (
-    '40000000-0000-0000-0000-000000000007',
-    '30000000-0000-0000-0000-000000000002',
-    'r2_talent_gap',
-    'Talent Gap',
-    'Two direct reports are disengaged and a leadership gap has emerged. Select two actions.',
-    'multi_select', 2, 2, true, 3
-  ),
-  (
-    '40000000-0000-0000-0000-000000000011',
-    '30000000-0000-0000-0000-000000000002',
-    'r2_operational_stress',
-    'Operational Stress Response',
-    'Operational throughput has dropped 8% from a supplier delay. How do you respond?',
-    'single_select', null, null, true, 4
-  )
-ON CONFLICT (id) DO UPDATE
-  SET key           = excluded.key,
-      title         = excluded.title,
-      prompt        = excluded.prompt,
-      decision_type = excluded.decision_type,
-      min_choices   = excluded.min_choices,
-      max_choices   = excluded.max_choices,
-      is_required   = excluded.is_required,
-      sort_order    = excluded.sort_order;
+  ('40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'r1_prioritization',
+   '90-Day Priority Focus',
+   'Select your top two priorities for the next 90 days. Your choices will shape resource allocation, communication, and operating rhythm across the division.',
+   'multi_select', 2, 2, TRUE, 1),
+  ('40000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', 'r1_capital',
+   'Discretionary Budget Allocation',
+   'You have $20M in discretionary budget to allocate across four areas. Distribute it as you see fit. Your allocation signals what you value and where you are placing your bets.',
+   'resource_allocation', NULL, NULL, TRUE, 2),
+  ('40000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000001', 'r1_talent_hoo',
+   'Head of Operations: Retention Decision',
+   'Your Head of Operations has been with BWXT for 14 years and is operationally irreplaceable in the short term. She''s offered to stay if given expanded authority over capital expenditure decisions. How do you respond?',
+   'single_select', NULL, NULL, TRUE, 3),
+  ('40000000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000001', 'r1_communication',
+   'First Leadership Communication',
+   'You are drafting your first all-hands message to the division''s 3,200 employees. What is the primary tone and content of your opening communication?',
+   'single_select', NULL, NULL, TRUE, 4),
+  ('40000000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000002', 'r2_regulatory',
+   'Regulatory Response',
+   'A federal regulator has issued a preliminary inquiry into a safety documentation gap. How do you respond?',
+   'single_select', NULL, NULL, TRUE, 1),
+  ('40000000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000002', 'r2_competitor',
+   'Competitor Threat Response',
+   'A well-funded competitor has announced entry into your core defense market. How do you respond?',
+   'single_select', NULL, NULL, TRUE, 2),
+  ('40000000-0000-0000-0000-000000000007', '30000000-0000-0000-0000-000000000002', 'r2_talent_gap',
+   'Talent Gap',
+   'Two direct reports are disengaged and a leadership gap has emerged. Select two actions.',
+   'multi_select', 2, 2, TRUE, 3),
+  ('40000000-0000-0000-0000-000000000011', '30000000-0000-0000-0000-000000000002', 'r2_operational_stress',
+   'Operational Stress Response',
+   'Operational throughput has dropped 8% from a supplier delay. How do you respond?',
+   'single_select', NULL, NULL, TRUE, 4),
+  ('40000000-0000-0000-0000-000000000008', '30000000-0000-0000-0000-000000000003', 'r3_ai_adoption',
+   'AI Pilot Program Decision',
+   'The AI vendor pilot offer expires in 10 days. Do you move forward?',
+   'single_select', NULL, NULL, TRUE, 1),
+  ('40000000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000003', 'r3_ai_governance',
+   'AI Governance Approach',
+   'How do you structure governance for the AI program?',
+   'single_select', NULL, NULL, TRUE, 2),
+  ('40000000-0000-0000-0000-000000000010', '30000000-0000-0000-0000-000000000003', 'r3_modernization',
+   'Modernization Sequencing',
+   'In what order do you sequence the modernization initiatives?',
+   'single_select', NULL, NULL, TRUE, 3),
+  ('40000000-0000-0000-0000-000000000012', '30000000-0000-0000-0000-000000000003', 'r3_workforce_comms',
+   'Workforce Implications',
+   'How do you address the workforce implications of AI adoption?',
+   'single_select', NULL, NULL, TRUE, 4)
+ON CONFLICT (id) DO UPDATE SET
+  scenario_round_id = EXCLUDED.scenario_round_id,
+  key               = EXCLUDED.key,
+  title             = EXCLUDED.title,
+  prompt            = EXCLUDED.prompt,
+  decision_type     = EXCLUDED.decision_type,
+  min_choices       = EXCLUDED.min_choices,
+  max_choices       = EXCLUDED.max_choices,
+  is_required       = EXCLUDED.is_required,
+  sort_order        = EXCLUDED.sort_order;
 
--- ─── Decision Templates — Round 3 ─────────────────────────────────────────────
 
-INSERT INTO decision_templates (
-  id, scenario_round_id, key, title, prompt,
-  decision_type, min_choices, max_choices, is_required, sort_order
-)
-VALUES
-  (
-    '40000000-0000-0000-0000-000000000008',
-    '30000000-0000-0000-0000-000000000003',
-    'r3_ai_adoption',
-    'AI Pilot Program Decision',
-    'The CDO is proposing a $15M AI pilot. What is your decision?',
-    'single_select', null, null, true, 1
-  ),
-  (
-    '40000000-0000-0000-0000-000000000009',
-    '30000000-0000-0000-0000-000000000003',
-    'r3_ai_governance',
-    'AI Governance Approach',
-    'How will you govern the use of AI across the division?',
-    'single_select', null, null, true, 2
-  ),
-  (
-    '40000000-0000-0000-0000-000000000010',
-    '30000000-0000-0000-0000-000000000003',
-    'r3_modernization',
-    'Digital Modernization Sequencing',
-    'Which digital modernization initiatives do you sequence first?',
-    'multi_select', 1, 2, true, 3
-  )
-ON CONFLICT (scenario_round_id, key) DO NOTHING;
-
--- ─── Decision Options — Round 2 ───────────────────────────────────────────────
--- Options 60000000-0000-0000-0000-000000000016 through ...0028
--- (Round 1 occupies 0001–0015)
-
-INSERT INTO decision_options (
-  id, decision_template_id, key, label, description, sort_order
-)
-VALUES
-  -- r2_regulatory options
-  (
-    '60000000-0000-0000-0000-000000000016',
-    '40000000-0000-0000-0000-000000000005',
-    'r2_reg_proactive',
-    'Engage proactively with the regulator before they escalate',
-    'Reach out directly to the regulatory contact to acknowledge the gap, present a remediation plan, and establish a cooperative posture.',
-    1
-  ),
-  (
-    '60000000-0000-0000-0000-000000000017',
-    '40000000-0000-0000-0000-000000000005',
-    'r2_reg_internal',
-    'Conduct an internal review first, then decide whether to disclose',
-    'Commission a rapid internal review before any external communication. Reserve disclosure decisions until the facts are clear.',
-    2
-  ),
-  (
-    '60000000-0000-0000-0000-000000000018',
-    '40000000-0000-0000-0000-000000000005',
-    'r2_reg_legal',
-    'Defer to legal and pause all related operations',
-    'Place all affected operations on hold and route all communications through legal counsel.',
-    3
-  ),
-  -- r2_competitor options
-  (
-    '60000000-0000-0000-0000-000000000019',
-    '40000000-0000-0000-0000-000000000006',
-    'r2_comp_partnership',
-    'Accelerate a strategic partnership to close capability gap',
-    'Identify and fast-track a manufacturing or technology partnership that closes the gap the competitor is exploiting.',
-    1
-  ),
-  (
-    '60000000-0000-0000-0000-000000000020',
-    '40000000-0000-0000-0000-000000000006',
-    'r2_comp_rnd',
-    'Double down on internal R&D and differentiation',
-    'Redirect discretionary investment into accelerated R&D to deepen technical differentiation.',
-    2
-  ),
-  (
-    '60000000-0000-0000-0000-000000000021',
-    '40000000-0000-0000-0000-000000000006',
-    'r2_comp_hold',
-    'Stay the course — competitors often overpromise',
-    'Maintain current strategy. Monitor the competitor''s execution before reacting.',
-    3
-  ),
-  -- r2_talent_gap options
-  (
-    '60000000-0000-0000-0000-000000000022',
-    '40000000-0000-0000-0000-000000000007',
-    'r2_tal_promote',
-    'Promote a high-potential internal candidate immediately',
-    'Identify the strongest internal candidate and move them into an expanded role now.',
-    1
-  ),
-  (
-    '60000000-0000-0000-0000-000000000023',
-    '40000000-0000-0000-0000-000000000007',
-    'r2_tal_search',
-    'Launch an accelerated external search',
-    'Engage an executive search firm immediately with a 60-day placement target.',
-    2
-  ),
-  (
-    '60000000-0000-0000-0000-000000000024',
-    '40000000-0000-0000-0000-000000000007',
-    'r2_tal_redistribute',
-    'Redistribute responsibilities across existing leadership',
-    'Realign portfolios across the current leadership team to cover the gap without adding headcount.',
-    3
-  ),
-  (
-    '60000000-0000-0000-0000-000000000025',
-    '40000000-0000-0000-0000-000000000007',
-    'r2_tal_interim',
-    'Bring in an interim executive while searching',
-    'Engage a specialized interim executive firm to place a senior leader within two weeks.',
-    4
-  ),
-  -- r2_operational_stress options
-  (
-    '60000000-0000-0000-0000-000000000026',
-    '40000000-0000-0000-0000-000000000011',
-    'r2_ops_scope',
-    'Temporarily reduce scope on lower-priority programs',
-    'Pause or deprioritize lower-urgency work to free capacity for constrained programs.',
-    1
-  ),
-  (
-    '60000000-0000-0000-0000-000000000027',
-    '40000000-0000-0000-0000-000000000011',
-    'r2_ops_realloc',
-    'Request emergency budget reallocation',
-    'Request an emergency budget draw to qualify a backup supplier and restore capacity through parallel sourcing.',
-    2
-  ),
-  (
-    '60000000-0000-0000-0000-000000000028',
-    '40000000-0000-0000-0000-000000000011',
-    'r2_ops_push',
-    'Push delivery teams harder and accept short-term burnout risk',
-    'Ask delivery teams to absorb the throughput gap through extended hours and compressed timelines.',
-    3
-  )
-ON CONFLICT (decision_template_id, key) DO NOTHING;
-
--- ─── Decision Effect Rules — Round 2 ──────────────────────────────────────────
--- Rules 70000000-0000-0000-0000-000000000055 through ...0090
--- (Round 1 occupies 0001–0054)
-
-INSERT INTO decision_effect_rules (
-  id, decision_option_id, effect_type, target_key, effect_value
-)
-VALUES
-  -- r2_reg_proactive (3 rules)
-  ('70000000-0000-0000-0000-000000000055', '60000000-0000-0000-0000-000000000016', 'kpi',   'safety_compliance_confidence', 12),
-  ('70000000-0000-0000-0000-000000000056', '60000000-0000-0000-0000-000000000016', 'kpi',   'executive_confidence',          6),
-  ('70000000-0000-0000-0000-000000000057', '60000000-0000-0000-0000-000000000016', 'score', 'enterprise_judgment',           4),
-  -- r2_reg_internal (3 rules)
-  ('70000000-0000-0000-0000-000000000058', '60000000-0000-0000-0000-000000000017', 'kpi',   'safety_compliance_confidence',  5),
-  ('70000000-0000-0000-0000-000000000059', '60000000-0000-0000-0000-000000000017', 'kpi',   'executive_confidence',          2),
-  ('70000000-0000-0000-0000-000000000060', '60000000-0000-0000-0000-000000000017', 'score', 'enterprise_judgment',           2),
-  -- r2_reg_legal (3 rules)
-  ('70000000-0000-0000-0000-000000000061', '60000000-0000-0000-0000-000000000018', 'kpi',   'safety_compliance_confidence', -5),
-  ('70000000-0000-0000-0000-000000000062', '60000000-0000-0000-0000-000000000018', 'kpi',   'decision_velocity',            -8),
-  ('70000000-0000-0000-0000-000000000063', '60000000-0000-0000-0000-000000000018', 'score', 'enterprise_judgment',          -2),
-  -- r2_comp_partnership (3 rules)
-  ('70000000-0000-0000-0000-000000000064', '60000000-0000-0000-0000-000000000019', 'kpi',   'digital_maturity',              8),
-  ('70000000-0000-0000-0000-000000000065', '60000000-0000-0000-0000-000000000019', 'kpi',   'financial_performance_outlook', 5),
-  ('70000000-0000-0000-0000-000000000066', '60000000-0000-0000-0000-000000000019', 'score', 'technology_data_leadership',    4),
-  -- r2_comp_rnd (3 rules)
-  ('70000000-0000-0000-0000-000000000067', '60000000-0000-0000-0000-000000000020', 'kpi',   'digital_maturity',             10),
-  ('70000000-0000-0000-0000-000000000068', '60000000-0000-0000-0000-000000000020', 'kpi',   'financial_performance_outlook', -4),
-  ('70000000-0000-0000-0000-000000000069', '60000000-0000-0000-0000-000000000020', 'score', 'technology_data_leadership',    5),
-  -- r2_comp_hold (2 rules)
-  ('70000000-0000-0000-0000-000000000070', '60000000-0000-0000-0000-000000000021', 'kpi',   'financial_performance_outlook', 3),
-  ('70000000-0000-0000-0000-000000000071', '60000000-0000-0000-0000-000000000021', 'score', 'enterprise_judgment',          -2),
-  -- r2_tal_promote (3 rules)
-  ('70000000-0000-0000-0000-000000000072', '60000000-0000-0000-0000-000000000022', 'kpi',   'talent_readiness',              8),
-  ('70000000-0000-0000-0000-000000000073', '60000000-0000-0000-0000-000000000022', 'kpi',   'cross_functional_alignment',    5),
-  ('70000000-0000-0000-0000-000000000074', '60000000-0000-0000-0000-000000000022', 'score', 'talent_leadership',             4),
-  -- r2_tal_search (2 rules)
-  ('70000000-0000-0000-0000-000000000075', '60000000-0000-0000-0000-000000000023', 'kpi',   'talent_readiness',              5),
-  ('70000000-0000-0000-0000-000000000076', '60000000-0000-0000-0000-000000000023', 'score', 'talent_leadership',             2),
-  -- r2_tal_redistribute (3 rules)
-  ('70000000-0000-0000-0000-000000000077', '60000000-0000-0000-0000-000000000024', 'kpi',   'talent_readiness',              3),
-  ('70000000-0000-0000-0000-000000000078', '60000000-0000-0000-0000-000000000024', 'kpi',   'operational_throughput',       -4),
-  ('70000000-0000-0000-0000-000000000079', '60000000-0000-0000-0000-000000000024', 'score', 'talent_leadership',             1),
-  -- r2_tal_interim (2 rules)
-  ('70000000-0000-0000-0000-000000000080', '60000000-0000-0000-0000-000000000025', 'kpi',   'talent_readiness',              6),
-  ('70000000-0000-0000-0000-000000000081', '60000000-0000-0000-0000-000000000025', 'score', 'decision_velocity_with_discipline', 3),
-  -- r2_ops_scope (3 rules)
-  ('70000000-0000-0000-0000-000000000082', '60000000-0000-0000-0000-000000000026', 'kpi',   'operational_throughput',        6),
-  ('70000000-0000-0000-0000-000000000083', '60000000-0000-0000-0000-000000000026', 'kpi',   'financial_performance_outlook', 3),
-  ('70000000-0000-0000-0000-000000000084', '60000000-0000-0000-0000-000000000026', 'score', 'enterprise_judgment',           2),
-  -- r2_ops_realloc (3 rules)
-  ('70000000-0000-0000-0000-000000000085', '60000000-0000-0000-0000-000000000027', 'kpi',   'operational_throughput',        8),
-  ('70000000-0000-0000-0000-000000000086', '60000000-0000-0000-0000-000000000027', 'kpi',   'financial_performance_outlook', -5),
-  ('70000000-0000-0000-0000-000000000087', '60000000-0000-0000-0000-000000000027', 'score', 'financial_strategic_acumen',    3),
-  -- r2_ops_push (3 rules)
-  ('70000000-0000-0000-0000-000000000088', '60000000-0000-0000-0000-000000000028', 'kpi',   'operational_throughput',       10),
-  ('70000000-0000-0000-0000-000000000089', '60000000-0000-0000-0000-000000000028', 'kpi',   'talent_readiness',             -8),
-  ('70000000-0000-0000-0000-000000000090', '60000000-0000-0000-0000-000000000028', 'score', 'talent_leadership',            -3)
-ON CONFLICT (id) DO NOTHING;
-
--- ─── Development Cohort (local testing only) ──────────────────────────────────
--- Remove or replace before deploying to production.
-
-INSERT INTO cohorts (id, name, description, status, scenario_version_id)
-VALUES (
-  '50000000-0000-0000-0000-000000000001',
-  'Development Cohort',
-  'Local testing cohort — not for production use.',
-  'active',
-  '20000000-0000-0000-0000-000000000001'
-) ON CONFLICT (id) DO NOTHING;
-
--- ─── Performance Profiles ────────────────────────────────────────────────────
--- Stable UUIDs: 80000000-0000-0000-0000-000000000001 through ...0008
--- Rules:        90000000-0000-0000-0000-000000000001 through ...0008
+-- ─── Performance profiles and profile rules ──────────────────────────────────
+--
+-- These are what production profile assignment actually uses. The richer,
+-- trait-gated rule set in src/content/iron-horizon/profiles.ts is the fallback
+-- for an unseeded database and the source for the static walkthrough.
+--
+-- The two sets are INTENTIONALLY different: the DB rules are trait-free and
+-- end with a '{}' catch-all on functional_optimizer, while the content rules
+-- use hidden traits and have no catch-all. CLAUDE.md documents the divergence.
+-- Do not reconcile it here.
+--
+-- Verified 2026-09-15: all 8 profiles and all 8 rules below are text-identical
+-- to what production holds.
+--
+-- Stable UUIDs: profiles 80000000-0000-0000-0000-00000000000{1..8}
+--               rules    90000000-0000-0000-0000-00000000000{1..8}
 --
 -- rule_logic_json keys supported by the engine:
---   scoreThresholds  — dimension must be >= value
---   scoreCeilings    — dimension must be <= value
---   kpiThresholds    — KPI must be >= value
---   dominantDimensions — avg of named dims must exceed avg of all others
---   requiredTraits   — hidden trait must have been acquired
+--   scoreThresholds      dimension must be >= value
+--   scoreCeilings        dimension must be <= value
+--   kpiThresholds        KPI must be >= value
+--   dominantDimensions   avg of named dims must exceed avg of all others
+--   requiredTraits       hidden trait must have been acquired
 
 INSERT INTO performance_profiles (id, key, label, description, strengths_text, blind_spots_text)
 VALUES
@@ -483,7 +367,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- ─── Profile Rules ────────────────────────────────────────────────────────────
 -- Evaluated in priority_order (ascending). First match wins.
--- Scores accumulate across 3 rounds; typical max per dimension is ~15–20 pts.
+-- Scores accumulate across 3 rounds; typical max per dimension is 15 to 20 pts.
 
 INSERT INTO profile_rules (id, performance_profile_id, priority_order, rule_logic_json)
 VALUES
@@ -537,7 +421,7 @@ VALUES
     '{"scoreThresholds": {"technology_data_leadership": 10}}'
   ),
   (
-    -- 8. Functional Optimizer: fallback — no conditions, always matches
+    -- 8. Functional Optimizer: catch-all, no conditions, always matches
     '90000000-0000-0000-0000-000000000008',
     '80000000-0000-0000-0000-000000000008',
     80,
@@ -545,28 +429,3 @@ VALUES
   )
 ON CONFLICT (id) DO NOTHING;
 
--- ─── After running this seed ─────────────────────────────────────────────────
--- To test as a participant:
---
--- 1. Sign in via magic link to create your Supabase auth user.
--- 2. Run the following SQL (replace the UUIDs with your own values):
---
---    INSERT INTO users (id, email, first_name, last_name, role)
---    VALUES (
---      'YOUR_AUTH_USER_UUID',   -- from auth.users.id
---      'you@example.com',
---      'First',
---      'Last',
---      'participant'
---    ) ON CONFLICT (id) DO NOTHING;
---
---    INSERT INTO cohort_memberships (user_id, cohort_id, cohort_role, invitation_status)
---    VALUES (
---      'YOUR_AUTH_USER_UUID',
---      '50000000-0000-0000-0000-000000000001',
---      'participant',
---      'accepted'
---    ) ON CONFLICT (user_id, cohort_id) DO NOTHING;
---
--- 3. Visit /simulation — a run will be auto-created and you will be
---    redirected to the orientation page.
