@@ -268,6 +268,43 @@ as $$
       );
 $$;
 
+-- True when the current user holds a faculty or admin membership in the given
+-- cohort. SECURITY DEFINER so the cohort_memberships read inside does not
+-- re-enter that table's own policy, which would recurse.
+create or replace function public.app_is_cohort_staff(target_cohort uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth
+as $
+  select target_cohort is not null
+     and exists (
+       select 1
+         from public.cohort_memberships m
+        where m.cohort_id = target_cohort
+          and m.user_id = public.app_current_user_id()
+          and m.cohort_role in ('faculty', 'admin')
+     );
+$;
+
+-- True when the current user holds any membership in the given cohort.
+create or replace function public.app_is_cohort_member(target_cohort uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth
+as $
+  select target_cohort is not null
+     and exists (
+       select 1
+         from public.cohort_memberships m
+        where m.cohort_id = target_cohort
+          and m.user_id = public.app_current_user_id()
+     );
+$;
+
 revoke all on function public.app_current_user_id()      from public, anon;
 revoke all on function public.app_current_user_role()    from public, anon;
 revoke all on function public.app_is_admin()             from public, anon;
@@ -275,6 +312,8 @@ revoke all on function public.app_is_faculty_or_admin()  from public, anon;
 revoke all on function public.app_owns_run(uuid)         from public, anon;
 revoke all on function public.app_can_rollback_round(uuid, uuid) from public, anon;
 revoke all on function public.app_can_view_run(uuid)     from public, anon;
+revoke all on function public.app_is_cohort_staff(uuid)   from public, anon;
+revoke all on function public.app_is_cohort_member(uuid)  from public, anon;
 
 grant execute on function public.app_current_user_id()     to authenticated;
 grant execute on function public.app_current_user_role()   to authenticated;
@@ -283,6 +322,8 @@ grant execute on function public.app_is_faculty_or_admin() to authenticated;
 grant execute on function public.app_owns_run(uuid)        to authenticated;
 grant execute on function public.app_can_rollback_round(uuid, uuid) to authenticated;
 grant execute on function public.app_can_view_run(uuid)    to authenticated;
+grant execute on function public.app_is_cohort_staff(uuid)  to authenticated;
+grant execute on function public.app_is_cohort_member(uuid) to authenticated;
 
 
 -- ----------------------------------------------------------------------------
@@ -435,11 +476,7 @@ create policy cohorts_select on public.cohorts
   for select to authenticated
   using (
     public.app_is_faculty_or_admin()
-    or exists (
-      select 1 from public.cohort_memberships m
-       where m.cohort_id = cohorts.id
-         and m.user_id = public.app_current_user_id()
-    )
+    or public.app_is_cohort_member(id)
   );
 
 drop policy if exists cohorts_insert_admin on public.cohorts;
@@ -462,12 +499,7 @@ create policy cohort_memberships_select on public.cohort_memberships
   using (
     user_id = public.app_current_user_id()
     or public.app_is_admin()
-    or exists (
-      select 1 from public.cohort_memberships f
-       where f.cohort_id = cohort_memberships.cohort_id
-         and f.user_id = public.app_current_user_id()
-         and f.cohort_role in ('faculty', 'admin')
-    )
+    or public.app_is_cohort_staff(cohort_id)
   );
 
 drop policy if exists cohort_memberships_insert_admin on public.cohort_memberships;
@@ -507,12 +539,7 @@ create policy simulation_runs_select on public.simulation_runs
   using (
     user_id = public.app_current_user_id()
     or public.app_is_admin()
-    or exists (
-      select 1 from public.cohort_memberships m
-       where m.cohort_id = simulation_runs.cohort_id
-         and m.user_id = public.app_current_user_id()
-         and m.cohort_role in ('faculty', 'admin')
-    )
+    or public.app_is_cohort_staff(cohort_id)
   );
 
 -- src/app/simulation/page.tsx auto-creates the caller's own run.
