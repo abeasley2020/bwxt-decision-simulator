@@ -14,26 +14,37 @@
  * ------------
  * Assigns a fresh cryptographically random password to every auth user and
  * signs out their existing sessions. Nobody can sign in with the old string
- * afterwards. Because the new passwords are never displayed, each user
- * recovers through the normal "forgot password" flow.
+ * afterwards.
+ *
+ * The new passwords are WRITTEN TO A LOCAL FILE, not discarded. That is
+ * deliberate: this project's Supabase instance cannot currently send mail
+ * (POST /auth/v1/recover returns 500, "Error sending recovery email"), so the
+ * "forgot password" flow does not work. Discarding the new passwords would
+ * lock every account out permanently with no recovery path.
+ *
+ * Distribute each password to its owner over a channel you trust, tell them to
+ * change it on first sign-in, then DELETE the output file. Once Supabase SMTP
+ * is configured, prefer --no-capture and let people self-serve a reset.
  *
  * Usage
  * -----
  *   node scripts/rotate-invite-passwords.mjs            # dry run, changes nothing
- *   node scripts/rotate-invite-passwords.mjs --apply    # performs the rotation
+ *   node scripts/rotate-invite-passwords.mjs --apply    # rotate, capture to a file
+ *   node scripts/rotate-invite-passwords.mjs --apply --no-capture   # discard passwords
  *   node scripts/rotate-invite-passwords.mjs --apply --email someone@example.com
+ *
+ * Captured output defaults to _audit/, which is gitignored.
  *
  * Requires SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL, which are
  * read from .env.local. Run it from the repository root.
  *
  * BEFORE YOU RUN WITH --apply
  * ---------------------------
- * Confirm Supabase can actually send password-reset email (Authentication ->
- * Emails). If it cannot, everyone is locked out with no recovery path.
- * Rotate one test account first with --email.
+ * Rotate one test account first with --email. Keep the capture file unless you
+ * have verified that password-reset email actually delivers.
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 
 function loadEnv() {
@@ -56,6 +67,7 @@ const newPassword = () => `${randomBytes(24).toString("base64url")}Aa1!`;
 
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
+const capture = !args.includes("--no-capture");
 const onlyEmail = (() => {
   const i = args.indexOf("--email");
   return i !== -1 ? args[i + 1] : null;
@@ -88,6 +100,7 @@ console.log(`${apply ? "ROTATING" : "DRY RUN — would rotate"} ${users.length} 
 
 let ok = 0;
 let failed = 0;
+const captured = [];
 
 for (const u of users) {
   const masked = (u.email || u.id).replace(/^(.).*(@.*)$/, "$1***$2");
@@ -95,15 +108,17 @@ for (const u of users) {
     console.log(`  would rotate  ${masked}`);
     continue;
   }
+  const pw = newPassword();
   const res = await fetch(`${url}/auth/v1/admin/users/${u.id}`, {
     method: "PUT",
     headers,
-    body: JSON.stringify({ password: newPassword() }),
+    body: JSON.stringify({ password: pw }),
   });
   if (res.ok) {
     // Invalidate any live session so an already-signed-in browser cannot persist.
     await fetch(`${url}/auth/v1/admin/users/${u.id}/logout`, { method: "POST", headers }).catch(() => {});
     console.log(`  rotated       ${masked}`);
+    if (capture) captured.push({ email: u.email ?? u.id, password: pw });
     ok++;
   } else {
     console.log(`  FAILED        ${masked}  ${res.status} ${await res.text()}`);
@@ -113,8 +128,34 @@ for (const u of users) {
 
 if (apply) {
   console.log(`\nRotated ${ok}, failed ${failed}.`);
-  console.log("New passwords were not printed anywhere by design.");
-  console.log("Tell each person to sign in via 'Forgot password' to set their own.");
+  if (capture && captured.length > 0) {
+    mkdirSync("_audit", { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const out = `_audit/rotated-credentials-${stamp}.txt`;
+    const body = [
+      "BWXT Enterprise Decision Simulator - rotated temporary passwords",
+      `Generated ${new Date().toISOString()}`,
+      "",
+      "These replace the shared password that was hardcoded in the invite route",
+      "and is present in git history. Distribute each one to its owner over a",
+      "channel you trust, tell them to change it on first sign-in, then DELETE",
+      "THIS FILE.",
+      "",
+      "Password-reset email is not working on this Supabase project, so there is",
+      "no self-service recovery path until SMTP is configured.",
+      "",
+      ...captured.map((r) => `${r.email}\t${r.password}`),
+      "",
+    ].join("\n");
+    writeFileSync(out, body, { mode: 0o600 });
+    console.log(`\nNew passwords written to ${out} (gitignored, mode 0600).`);
+    console.log("Distribute them, then delete that file.");
+  } else if (capture) {
+    console.log("Nothing rotated, so no capture file was written.");
+  } else {
+    console.log("New passwords were discarded (--no-capture).");
+    console.log("This is only safe if password-reset email is known to work.");
+  }
 } else {
   console.log("\nNothing was changed. Re-run with --apply to perform the rotation.");
 }
