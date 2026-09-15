@@ -34,11 +34,11 @@ export default function SimulationNav({ roundLabel }: SimulationNavProps) {
 
         {/* Right: round label pill + sign out */}
         <div className="flex items-center gap-4">
+          {/* The visible text already reads as "Round N of 3", so no
+              aria-label is needed. An aria-label here would be dropped
+              anyway: a bare <div> resolves to role generic. */}
           {roundLabel && (
-            <div
-              aria-label={roundLabel}
-              className="bg-white/10 border border-white/20 rounded-full px-3 py-1 text-white text-[13px] font-medium"
-            >
+            <div className="bg-white/10 border border-white/20 rounded-full px-3 py-1 text-white text-[13px] font-medium">
               {roundLabel}
             </div>
           )}

@@ -12,9 +12,14 @@
     --bwxt-crimson-light: #F5E6E8;
     --bwxt-bg: #F4F4F7;
     --bwxt-border: #E0DFF0;
+    /* Interactive control boundary, 3:1 minimum per WCAG 2.2 AA 1.4.11.
+       --bwxt-border is decorative only (1.31:1) and must not be used on
+       inputs, textareas or other controls. */
+    --bwxt-border-input: #84829F;
     --bwxt-text-primary: #17153A;
     --bwxt-text-secondary: #5A5880;
-    --bwxt-text-muted: #9896B0;
+    /* 4.5:1 minimum on white, --bwxt-bg, --bwxt-navy-light and gray-50. */
+    --bwxt-text-muted: #63618A;
   }
   html {
     font-size: 15px;

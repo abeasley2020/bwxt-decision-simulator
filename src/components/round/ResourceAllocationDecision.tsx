@@ -7,8 +7,18 @@
  * Participants distribute a percentage total (must sum to 100%) across
  * the available areas. Dollar amounts are computed and shown inline.
  *
- * WCAG: each input has an explicit label; live running total uses aria-live;
- * error announced via role="alert"; color + text convey total validity.
+ * WCAG:
+ *  - The whole control is a <fieldset> with an sr-only <legend>, so
+ *    aria-describedby and the group name are actually exposed. A bare
+ *    <div> resolves to role generic, where both are dropped silently.
+ *  - Each input carries its own aria-invalid and aria-describedby, which
+ *    are valid on an input but not on a generic container.
+ *  - Exactly one live region (the running total). Per-row dollar figures
+ *    are reachable through aria-describedby instead of competing live
+ *    regions, so a single keystroke queues a single announcement.
+ *  - Input boundaries use bwxt.border-input (3:1 minimum, SC 1.4.11);
+ *    bwxt.border is decorative and fails that threshold.
+ *  - Total validity is carried by text as well as color (SC 1.4.1).
  */
 
 import type { DecisionTemplate } from "@/engine/types";
@@ -31,6 +41,7 @@ export default function ResourceAllocationDecision({
   const groupId = `decision-${decision.key}`;
   const errorId = `${groupId}-error`;
   const totalId = `${groupId}-total`;
+  const instructionsId = `${groupId}-instructions`;
 
   const total = Object.values(value).reduce((sum, v) => sum + (v || 0), 0);
   const remaining = 100 - total;
@@ -49,19 +60,35 @@ export default function ResourceAllocationDecision({
     : "text-bwxt-warning";
 
   const totalStatusText = isValid
-    ? "100% allocated — ready to submit"
+    ? "100% allocated, ready to submit"
     : total > 100
-    ? `${total}% allocated — ${total - 100}% over budget`
-    : `${total}% allocated — ${remaining}% remaining`;
+    ? `${total}% allocated, ${total - 100}% over budget`
+    : `${total}% allocated, ${remaining}% remaining`;
+
+  const describedBy = [instructionsId, totalId, error ? errorId : ""]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div
-      aria-describedby={`${totalId}${error ? ` ${errorId}` : ""}`}
-      aria-invalid={error ? "true" : undefined}
-    >
+    <fieldset aria-describedby={describedBy}>
+      <legend className="sr-only">{decision.title}</legend>
+
+      {/* Visible instructions, also referenced by the fieldset and by each
+          input, so the rule is available before the first keystroke. */}
+      <p
+        id={instructionsId}
+        className="text-[13px] text-bwxt-text-secondary leading-relaxed mb-3"
+      >
+        Enter a whole percentage for each of the {decision.options.length} areas
+        below. The percentages must total exactly 100. The dollar figure beside
+        each input is that percentage of the {`$${TOTAL_BUDGET_MILLIONS}M`}{" "}
+        budget.
+      </p>
+
       <div className="space-y-3 mb-4">
         {decision.options.map((opt) => {
           const inputId = `${groupId}-${opt.key}`;
+          const dollarsId = `${inputId}-dollars`;
           const pct = value[opt.key] ?? 0;
           const dollars = ((TOTAL_BUDGET_MILLIONS * pct) / 100).toFixed(1);
 
@@ -95,19 +122,24 @@ export default function ResourceAllocationDecision({
                       value={pct}
                       onChange={(e) => handleChange(opt.key, e.target.value)}
                       aria-label={`${opt.label}: percentage of budget`}
+                      aria-describedby={`${dollarsId} ${instructionsId}${
+                        error ? ` ${errorId}` : ""
+                      }`}
+                      aria-invalid={error ? "true" : undefined}
                       className="
                         w-16 px-2 py-1.5 text-right text-[15px] font-semibold
-                        border border-bwxt-border rounded-md text-bwxt-navy
+                        border border-bwxt-border-input rounded-md text-bwxt-navy
                         focus:outline-none focus:border-bwxt-crimson focus:ring-1
                         focus:ring-bwxt-crimson
                       "
                     />
                     <span className="text-[15px] text-bwxt-text-secondary font-medium">%</span>
                   </div>
+                  {/* Not a live region: the running total below is the single
+                      live region for this control. */}
                   <span
+                    id={dollarsId}
                     className="text-[13px] text-bwxt-text-muted tabular-nums"
-                    aria-live="polite"
-                    aria-label={`${opt.label}: $${dollars}M`}
                   >
                     ${dollars}M
                   </span>
@@ -118,7 +150,7 @@ export default function ResourceAllocationDecision({
         })}
       </div>
 
-      {/* Running total — live region */}
+      {/* Running total: the one and only live region in this control */}
       <div
         id={totalId}
         aria-live="polite"
@@ -149,6 +181,6 @@ export default function ResourceAllocationDecision({
           {error}
         </p>
       )}
-    </div>
+    </fieldset>
   );
 }

@@ -18,9 +18,15 @@ const config: Config = {
           'crimson-light':  '#F5E6E8',
           bg:               '#F4F4F7',
           border:           '#E0DFF0',
+          // Interactive control boundary. WCAG 2.2 AA 1.4.11 needs 3:1 against
+          // adjacent color; bwxt.border is 1.31:1 and is for decorative card
+          // edges only. Use border-bwxt-border-input on inputs, textareas and
+          // any other control whose shape carries meaning.
+          'border-input':   '#84829F',
           'text-primary':   '#17153A',
           'text-secondary': '#5A5880',
-          'text-muted':     '#9896B0',
+          // 4.5:1 minimum on white, bwxt.bg, bwxt.navy-light and gray-50.
+          'text-muted':     '#63618A',
           success:          '#1A6B4A',
           warning:          '#92600A',
           danger:           '#9E3039',

@@ -8,7 +8,7 @@
 <style>
   /* ── Walkthrough chrome tokens (theme-aware) ─────────────────────────── */
   :root{
-    --c-bg:#EDEDF1; --c-panel:#FFFFFF; --c-fg:#1B1A2E; --c-muted:#6E6C86;
+    --c-bg:#EDEDF1; --c-panel:#FFFFFF; --c-fg:#1B1A2E; --c-muted:#63617B;
     --c-line:#D8D7E4; --c-bar:#100E24; --c-bar-fg:#FFFFFF; --c-bar-muted:rgba(255,255,255,.62);
     --c-note-bg:#FBF3E2; --c-note-line:#E4C989; --c-note-fg:#6B4E11; --c-note-accent:#A97612;
     --c-focus:#4C6FFF;
@@ -21,7 +21,7 @@
   :root[data-theme="dark"]{ --c-bg:#141320; --c-panel:#1E1C30; --c-fg:#ECEBF4; --c-muted:#9C9AB4;
     --c-line:#33314A; --c-bar:#0A0918; --c-note-bg:#2A2410; --c-note-line:#5C4A1A;
     --c-note-fg:#E8CF8E; --c-note-accent:#D9A93F; }
-  :root[data-theme="light"]{ --c-bg:#EDEDF1; --c-panel:#FFFFFF; --c-fg:#1B1A2E; --c-muted:#6E6C86;
+  :root[data-theme="light"]{ --c-bg:#EDEDF1; --c-panel:#FFFFFF; --c-fg:#1B1A2E; --c-muted:#63617B;
     --c-line:#D8D7E4; --c-bar:#100E24; --c-note-bg:#FBF3E2; --c-note-line:#E4C989;
     --c-note-fg:#6B4E11; --c-note-accent:#A97612; }
 
@@ -62,6 +62,10 @@
 
   /* ── Stage + walkthrough footer nav ──────────────────────────────────── */
   #stage{min-height:calc(100vh - 130px)}
+  #stage:focus{outline:none}
+  #stage:focus-visible{outline:3px solid var(--c-note-accent);outline-offset:-3px}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    clip:rect(0,0,0,0);white-space:nowrap;border:0}
   .wnav{max-width:880px;margin:0 auto;padding:22px 18px 60px;display:flex;justify-content:space-between;gap:12px}
   .wnav button{border:1px solid var(--c-line);background:var(--c-panel);color:var(--c-fg);border-radius:10px;
     padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer}
@@ -73,7 +77,7 @@
     border-left:4px solid var(--c-note-accent);border-radius:10px;padding:13px 16px;margin:14px 0;
     color:var(--c-note-fg);font-size:13.5px;line-height:1.6}
   .note b.tag{display:block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
-    color:var(--c-note-accent);margin-bottom:5px}
+    color:var(--c-note-fg);margin-bottom:5px}
   body.notes .note{display:block}
   .fx{display:none;flex-wrap:wrap;gap:5px;margin-top:9px}
   body.notes .fx{display:flex}
@@ -86,7 +90,8 @@
 
   /* ══ SIMULATOR SURFACE: fixed BWXT light design system, verbatim tokens ══ */
   .sim{--navy:#17153A;--navy-dark:#0E0C27;--navy-light:#EEEDF7;--crimson:#9E3039;--crimson-bright:#C93147;
-    --crimson-light:#F5E6E8;--bg:#F4F4F7;--border:#E0DFF0;--t1:#17153A;--t2:#5A5880;--t3:#9896B0;
+    --crimson-light:#F5E6E8;--bg:#F4F4F7;--border:#E0DFF0;--border-input:#84829F;
+    --t1:#17153A;--t2:#5A5880;--t3:#63618A;
     --ok:#1A6B4A;--warn:#92600A;
     background:var(--bg);color:var(--t1);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
   .sim .serif{font-family:"Playfair Display",Georgia,"Times New Roman",serif}
@@ -151,7 +156,7 @@
   .sim td:first-child{text-align:left;padding-left:16px;font-weight:500}
   .sim td .tup{color:var(--ok);font-size:12px;margin-left:4px}
   .sim td .tdn{color:var(--crimson);font-size:12px;margin-left:4px}
-  .sim textarea,.sim input[type=number],.sim input[type=email]{width:100%;border:1px solid var(--border);
+  .sim textarea,.sim input[type=number],.sim input[type=email]{width:100%;border:1px solid var(--border-input);
     border-radius:8px;padding:10px 12px;font-size:15px;color:var(--navy);font-family:inherit;background:#fff}
   .sim textarea:focus,.sim input:focus{outline:none;border-color:var(--crimson);
     box-shadow:0 0 0 1px var(--crimson)}
@@ -208,15 +213,19 @@
 </head>
 <body>
 
-<div class="bar" role="banner">
+<header class="bar">
   <div class="brand">Iron Horizon<small>Guided walkthrough</small></div>
   <div class="mid" id="barMid"></div>
   <button class="chip-btn" id="notesBtn" aria-pressed="false" title="Toggle designer annotations">✎ Designer notes</button>
   <button class="chip-btn" id="menuBtn" aria-expanded="false">Screens ▾</button>
   <button class="chip-btn" id="resetBtn" title="Clear your choices and start over">↺ Restart</button>
-</div>
+</header>
 <nav class="drawer" id="drawer" aria-label="Jump to screen"></nav>
-<div id="stage"></div>
+<main id="stage" tabindex="-1"></main>
+<!-- Persistent live region. Always in the DOM so assistive tech has it
+     registered before the text changes; announcing from a node that is
+     itself re-created by innerHTML announces nothing. -->
+<div id="srStatus" role="status" aria-live="polite" class="sr-only"></div>
 <div class="wnav">
   <button id="prevBtn">← Back</button>
   <button id="nextBtn">Continue →</button>
@@ -528,6 +537,25 @@ function kpiCards(vals,base){
       aria-label="${esc(k.l)}: ${v} out of 100"><i style="width:${v}%"></i></div>${dHtml}</div>`;
   }).join("")+`</div>`;
 }
+/* Every screen needs its own <h1>: the stage innerHTML is replaced wholesale,
+   so the cover's heading does not survive navigation. Visually hidden where
+   the screen's own design already leads with a statusbar. */
+function srH1(text){return `<h1 class="sr-only">${esc(text)}</h1>`}
+function allocTotalText(tot){
+  return tot===100?"100% allocated, ready to submit"
+    :tot>100?tot+"% allocated, "+(tot-100)+"% over budget"
+    :tot+"% allocated, "+(100-tot)+"% remaining";
+}
+/* Writes into the one persistent live region. Re-setting identical text does
+   not re-announce in some screen readers, so a zero-width space is toggled
+   on repeats to force a fresh announcement. */
+let srLast="";
+function announce(text){
+  const el=document.getElementById("srStatus");
+  if(!el)return;
+  el.textContent = (text===srLast) ? text+"​" : text;
+  srLast=el.textContent;
+}
 function statusbar(pill,label,right){
   return `<div class="statusbar"><div class="in"><span class="pill">${esc(pill)}</span>
     <span class="lbl">· ${esc(label)}</span>${right?`<span class="r">${esc(right)}</span>`:""}</div></div>`;
@@ -577,7 +605,7 @@ function renderCover(){
       <li><b>↺ Restart</b> clears your choices. Progress is saved in this browser, mirroring the real
       product's resume behavior.</li>
     </ul>
-    ${note("The production app is Next.js + Supabase with magic-link auth and role-based access (participant / faculty / admin). This walkthrough is a single HTML file: the UI is re-created against the same design tokens, and the engine functions (<code>kpi.ts</code>, <code>scoring.ts</code>, <code>effects.ts</code>, <code>profiling.ts</code>) are ported line-for-line: they are pure functions with no framework dependencies, so outcomes here match production.","How this walkthrough was built")}
+    ${note("The production app is Next.js + Supabase with email and password auth and role-based access (participant / faculty / admin). This walkthrough is a single HTML file: the UI is re-created against the same design tokens, and the engine functions (<code>kpi.ts</code>, <code>scoring.ts</code>, <code>effects.ts</code>, <code>profiling.ts</code>) are ported line-for-line: they are pure functions with no framework dependencies, so outcomes here match production.","How this walkthrough was built")}
   </div>`;
 }
 
@@ -587,13 +615,15 @@ function renderLogin(){
       <div class="card" style="padding:36px">
         <p class="eyebrow" style="margin:0 0 14px">BWXT Leadership Academy</p>
         <h1 class="serif" style="font-size:28px;font-weight:700;color:var(--navy);margin:0 0 6px">Enterprise Decision Simulator</h1>
-        <p style="font-size:14px;color:var(--t2);margin:0 0 24px;line-height:1.6">Sign in with the email address your cohort invitation was sent to. We'll email you a secure sign-in link; no password needed.</p>
-        <label class="flabel" for="demo-email" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Work email</label>
+        <p style="font-size:14px;color:var(--t2);margin:0 0 24px;line-height:1.6">Sign in with the work email address your cohort invitation was sent to, using the temporary password issued with that invitation.</p>
+        <label class="flabel" for="demo-email" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Work email address</label>
         <input id="demo-email" type="email" value="participant@bwxt.com" readonly aria-readonly="true">
-        <button class="btn" style="margin-top:16px" data-act="next">Send magic link</button>
-        <p class="btn-hint">One-time link, valid for 15 minutes.</p>
+        <label class="flabel" for="demo-password" style="display:block;font-size:13px;font-weight:600;margin:14px 0 6px">Password</label>
+        <input id="demo-password" type="password" value="illustrative" readonly aria-readonly="true">
+        <button class="btn" style="margin-top:16px" data-act="next">Sign in</button>
+        <p class="btn-hint">In this walkthrough the button simply continues.</p>
       </div>
-      ${note("Authentication is <b>magic-link email</b> via Supabase; participants never set a password. Roles (participant, faculty, admin) are checked per page; participants land in the simulation, faculty and admins are redirected to their own dashboards. In this walkthrough the button simply continues; no email is sent.","Screen 1 · Sign in")}
+      ${note("Authentication is <b>email and password</b> via Supabase. An administrator provisions the account from the cohort roster, and the invitation carries a unique temporary password the participant is expected to change on first sign-in. Roles (participant, faculty, admin) are checked per page; participants land in the simulation, faculty and admins are redirected to their own dashboards. In this walkthrough the button simply continues; nothing is sent.","Screen 1 · Sign in")}
     </div>
   </div>`;
 }
@@ -665,7 +695,7 @@ function renderOrientation(){
           </fieldset>`).join("")}
           <label class="flabel" for="sa_q4" style="display:block">4. As you begin this simulation, what is your primary leadership concern? <span style="color:var(--t3);font-weight:400">(Optional)</span></label>
           <textarea id="sa_q4" rows="3" maxlength="500" placeholder="Describe the leadership challenge you find most difficult or most relevant to your current role...">${esc(S.sa.q4||"")}</textarea>
-          <p class="err" id="saErr" style="display:none">Please answer the three rating questions before beginning.</p>
+          <p class="err" id="saErr" role="alert" hidden>Please answer the three rating questions before beginning.</p>
           <div style="border-top:1px solid var(--border);margin-top:28px;padding-top:24px">
             <button class="btn" data-act="begin">Begin Simulation →</button>
             <p class="btn-hint">Your first decision begins immediately after you click this button.</p>
@@ -678,6 +708,7 @@ function renderOrientation(){
 function renderRound(n){
   const R=ROUNDS[n-1],d=draftFor(n);
   return `<div class="sim">
+    ${srH1("Round "+n+" of 3: "+R.title)}
     ${statusbar("Round "+n+" of 3",R.title,R.decisions.length+" Decisions")}
     <div class="wrap" style="padding-top:32px;padding-bottom:40px;display:grid;gap:32px">
       <section><h2 class="sec">Situation Briefing</h2>
@@ -702,12 +733,12 @@ function renderRound(n){
                 <label for="al-${o.k}" style="font-weight:600;font-size:15px;color:var(--navy);display:block;margin-bottom:2px">${esc(o.l)}</label>
                 <p style="font-size:13px;color:var(--t2);margin:0;line-height:1.55">${esc(o.d)}</p>${fxChips(o)}</div>
                 <div style="text-align:right;flex-shrink:0">
-                  <input id="al-${o.k}" type="number" min="0" max="100" step="1" value="${pct}" data-alloc="${o.k}" data-dec="${dec.k}" aria-label="${esc(o.l)}: percentage of budget"> %
-                  <div style="font-size:13px;color:var(--t3);margin-top:4px;font-variant-numeric:tabular-nums" aria-live="polite">$${(20*pct/100).toFixed(1)}M</div>
+                  <input id="al-${o.k}" type="number" min="0" max="100" step="1" value="${pct}" data-alloc="${o.k}" data-dec="${dec.k}" aria-label="${esc(o.l)}: percentage of budget" aria-describedby="ald-${o.k}"> %
+                  <div id="ald-${o.k}" style="font-size:13px;color:var(--t3);margin-top:4px;font-variant-numeric:tabular-nums">$${(20*pct/100).toFixed(1)}M</div>
                 </div></div>`;}).join("")+
-              `<div class="alloc-total ${tot===100?"ok":tot>100?"over":"under"}" aria-live="polite">
+              `<div class="alloc-total ${tot===100?"ok":tot>100?"over":"under"}" data-alloctotal="${dec.k}">
                 <span style="font-weight:500">Total allocated</span>
-                <b style="font-variant-numeric:tabular-nums;color:${tot===100?"var(--ok)":tot>100?"var(--crimson)":"var(--warn)"}">${tot===100?"100% allocated — ready to submit":tot>100?tot+"% allocated — "+(tot-100)+"% over budget":tot+"% allocated — "+(100-tot)+"% remaining"}</b></div>`;
+                <b style="font-variant-numeric:tabular-nums;color:${tot===100?"var(--ok)":tot>100?"var(--crimson)":"var(--warn)"}">${allocTotalText(tot)}</b></div>`;
           }else{
             const inputType=dec.type==="single"?"radio":"checkbox";
             body=`<div style="display:grid;gap:10px" role="group" aria-label="${esc(dec.t)}">`+dec.opts.map(o=>{
@@ -737,6 +768,7 @@ function renderConseq(n){
   const c=CONSEQ[n];
   const head=c?c.h:"Round "+n+" Complete";
   return `<div class="sim">
+    ${srH1("Round "+n+" complete: "+head)}
     ${statusbar("Round "+n+" Complete",head)}
     <div class="wrap" style="padding-top:32px;padding-bottom:40px;display:grid;gap:32px">
     ${c?`
@@ -770,6 +802,7 @@ const REC_FIELDS=[
 
 function renderRec(){
   return `<div class="sim">
+    ${srH1("Executive Recommendation")}
     ${statusbar("Final Step","Executive Recommendation")}
     <div class="wrap" style="padding-top:32px;padding-bottom:40px">
       <p style="font-size:15px;color:var(--t2);line-height:1.65;max-width:64ch">Your 90 days are complete. Before you see your results, brief the Board: five structured questions that become your executive recommendation. Faculty read these verbatim; this is the simulation's richest diagnostic artifact.</p>
@@ -780,7 +813,7 @@ function renderRec(){
         <label for="rec-${f[0]}" style="display:block;font-weight:600;font-size:15px;color:var(--navy);margin-bottom:4px">${f[1]} <span style="color:var(--crimson)" aria-hidden="true">*</span></label>
         <p style="font-size:15px;color:var(--t2);margin:0 0 12px;line-height:1.65">${f[2]}</p>
         <textarea id="rec-${f[0]}" data-rec="${f[0]}" rows="5" placeholder="${esc(f[3])}" style="min-height:110px">${esc(S.rec[f[0]]||"")}</textarea>
-        <p class="err" data-recerr="${f[0]}" style="display:none">This field is required.</p></div>`).join("")}
+        <p class="err" data-recerr="${f[0]}" role="alert" hidden>This field is required.</p></div>`).join("")}
       </div>
       <div style="border-top:1px solid var(--border);margin-top:32px;padding-top:24px">
         <button class="btn" data-act="submitRec">Submit Executive Recommendation</button>
@@ -794,6 +827,7 @@ function renderDashboard(){
   const pk=assignProfile(fin,sc,traits),prof=PROFILES.find(p=>p.k===pk);
   const maxScore=Math.max(...Object.values(sc),1);
   return `<div class="sim">
+    ${srH1("Performance Dashboard")}
     ${statusbar("All Rounds Complete","Performance Dashboard")}
     <div class="wrap" style="padding-top:32px;padding-bottom:40px;display:grid;gap:32px">
       <section><h2 class="sec">Your Leadership Profile</h2>
@@ -999,7 +1033,7 @@ function renderFacParticipants(){
    ════════════════════════════════════════════════════════════════════════ */
 const SCREENS=[
  {t:"Welcome",act:"Start",render:renderCover,need:0},
- {t:"Sign in (magic link)",act:"Act I · Participant",render:renderLogin,need:0},
+ {t:"Sign in",act:"Act I · Participant",render:renderLogin,need:0},
  {t:"Orientation & self-assessment",act:"Act I · Participant",render:renderOrientation,need:0},
  {t:"Round 1: Set Direction",act:"Act I · Participant",render:()=>renderRound(1),need:0},
  {t:"Round 1: Consequences",act:"Act I · Participant",render:()=>renderConseq(1),need:1},
@@ -1039,8 +1073,31 @@ function goto(i,skipFill){
   rvErrorsClear();
   render();
   window.scrollTo({top:0});
+  /* innerHTML replacement destroys whatever had focus, which drops it to
+     <body> and loses the user's place. Move it to the new screen instead,
+     and name the screen in the title and the live region. */
+  document.title=`${scr.t} · Screen ${i+1} of ${SCREENS.length} · Iron Horizon guided walkthrough`;
+  const st=document.getElementById("stage");
+  if(st)st.focus();
+  announce(`Screen ${i+1} of ${SCREENS.length}: ${scr.t}`);
 }
 function rvErrorsClear(){for(const k in rvErrors)delete rvErrors[k]}
+/* render() replaces the stage innerHTML, which destroys the focused control
+   and drops focus to <body>. Selecting an option must not cost the user their
+   place, so re-focus the equivalent node afterwards. */
+function rerenderKeepingFocus(){
+  const a=document.activeElement;
+  const id=a&&a.id, name=a&&a.name, val=a&&a.value;
+  const selStart=(a&&a.selectionStart!=null)?a.selectionStart:null;
+  render();
+  let back=null;
+  if(id)back=document.getElementById(id);
+  if(!back&&name)back=stage.querySelector(`[name="${name}"][value="${val}"]`);
+  if(back){
+    back.focus();
+    if(selStart!=null&&back.setSelectionRange){try{back.setSelectionRange(selStart,selStart)}catch(e){}}
+  }
+}
 function render(){
   const i=S.screen,scr=SCREENS[i];
   document.body.classList.toggle("notes",!!S.notes);
@@ -1097,19 +1154,32 @@ function wire(){
     const a=el.dataset.act;
     if(a==="next")goto(S.screen+1);
     else if(a==="begin"){
-      if(!S.sa.q1||!S.sa.q2||!S.sa.q3){const er=document.getElementById("saErr");if(er){er.style.display="block";er.scrollIntoView({block:"center"})}return}
+      if(!S.sa.q1||!S.sa.q2||!S.sa.q3){
+        const er=document.getElementById("saErr");
+        if(er){er.hidden=false;er.scrollIntoView({block:"center"})}
+        /* Focus the first unanswered group so a keyboard or screen reader
+           user lands on the thing that needs fixing, not on <body>. */
+        const firstBad=["q1","q2","q3"].find(q=>!S.sa[q]);
+        const fi=firstBad&&stage.querySelector(`input[name="sa_${firstBad}"]`);
+        if(fi)fi.focus();
+        return;
+      }
       goto(S.screen+1,true);
     }
     else if(a==="submitRound")submitRound(+el.dataset.round);
     else if(a==="submitRec"){
-      let ok=true;
+      let ok=true,firstBadField=null;
       REC_FIELDS.forEach(f=>{
         const bad=!(S.rec[f[0]]||"").trim();
         const er=stage.querySelector(`[data-recerr="${f[0]}"]`);
-        if(er)er.style.display=bad?"block":"none";
-        if(bad)ok=false;
+        /* hidden, not style.display: role="alert" fires when the node is
+           revealed, and a display-toggled node announces nothing. */
+        if(er)er.hidden=!bad;
+        const ta=stage.querySelector(`textarea[data-rec="${f[0]}"]`);
+        if(ta)ta.setAttribute("aria-invalid",bad?"true":"false");
+        if(bad){ok=false;if(!firstBadField)firstBadField=ta;}
       });
-      if(!ok)return;
+      if(!ok){if(firstBadField){firstBadField.focus();firstBadField.scrollIntoView({block:"center"})}return;}
       S.recDone=true;save();goto(S.screen+1,true);
     }
   }));
@@ -1127,13 +1197,42 @@ function wire(){
         if(s.sel.length>max){s.sel=s.sel.filter(k=>k!==el.value);el.checked=false;return}
       }else s.sel=s.sel.filter(k=>k!==el.value);
     }
-    delete rvErrors[dec.k];save();render();
+    delete rvErrors[dec.k];save();rerenderKeepingFocus();
   }));
-  stage.querySelectorAll("input[data-alloc]").forEach(el=>el.addEventListener("change",()=>{
+  /* "input" rather than "change": a change event only fires on blur, so the
+     running total lagged behind what the user had typed. The handler updates
+     the affected nodes in place and never calls render(), because replacing
+     the stage innerHTML on every keystroke would throw focus out of the field
+     being typed into. The single #srStatus region carries the announcement. */
+  stage.querySelectorAll("input[data-alloc]").forEach(el=>el.addEventListener("input",()=>{
     const n=+SCREENS[S.screen].t.match(/Round (\d)/)[1];
-    const d=draftFor(n),s=d[el.dataset.dec];
+    const d=draftFor(n),decKey=el.dataset.dec,st=d[decKey];
     let v=parseInt(el.value,10);v=isNaN(v)?0:Math.min(100,Math.max(0,v));
-    s.alloc[el.dataset.alloc]=v;delete rvErrors[el.dataset.dec];save();render();
+    st.alloc[el.dataset.alloc]=v;
+    const hadError=!!rvErrors[decKey];
+    delete rvErrors[decKey];
+    save();
+
+    /* Row dollar figure, referenced by this input's aria-describedby. */
+    const dv=document.getElementById("ald-"+el.dataset.alloc);
+    if(dv)dv.textContent="$"+(20*v/100).toFixed(1)+"M";
+
+    /* Running total, updated in place rather than re-created. */
+    const dec=ROUNDS[n-1].decisions.find(x=>x.k===decKey);
+    const tot=dec.opts.reduce((a,o)=>a+(st.alloc[o.k]||0),0);
+    const tn=stage.querySelector(`[data-alloctotal="${decKey}"]`);
+    const txt=allocTotalText(tot);
+    if(tn){
+      tn.className="alloc-total "+(tot===100?"ok":tot>100?"over":"under");
+      const b=tn.querySelector("b");
+      if(b){b.textContent=txt;
+        b.style.color=tot===100?"var(--ok)":tot>100?"var(--crimson)":"var(--warn)";}
+    }
+    announce("Total allocated: "+txt);
+
+    /* Only a cleared validation error justifies a full re-render, and even
+       then focus is put back where it was. */
+    if(hadError)rerenderKeepingFocus();
   }));
   stage.querySelectorAll("textarea[data-rec]").forEach(el=>el.addEventListener("input",()=>{
     S.rec[el.dataset.rec]=el.value;save();

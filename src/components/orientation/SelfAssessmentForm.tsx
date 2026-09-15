@@ -6,7 +6,9 @@
  * Responses are submitted with the Begin Simulation form POST.
  *
  * WCAG: fieldset + legend per question group; labels for all inputs;
- * required attribute on radio groups; visible focus styles.
+ * required attribute on radio groups; visible focus styles; control
+ * boundaries use bwxt.border-input so they clear 3:1 (SC 1.4.11), since
+ * bwxt.border is a decorative card edge at 1.31:1.
  */
 
 const RATING_LABELS: Record<number, string> = {
@@ -48,7 +50,7 @@ function RatingQuestion({ name, legend, id }: RatingQuestionProps) {
               value={String(value)}
               required={value === 1}
               className="
-                w-5 h-5 text-bwxt-crimson border-bwxt-border cursor-pointer
+                w-5 h-5 text-bwxt-crimson border-bwxt-border-input cursor-pointer
                 focus:ring-2 focus:ring-bwxt-crimson focus:ring-offset-1
               "
             />
@@ -99,7 +101,7 @@ export default function SelfAssessmentForm() {
           maxLength={500}
           placeholder="Describe the leadership challenge you find most difficult or most relevant to your current role..."
           className="
-            w-full px-3 py-2 rounded-lg border border-bwxt-border text-bwxt-navy
+            w-full px-3 py-2 rounded-lg border border-bwxt-border-input text-bwxt-navy
             text-[15px] leading-relaxed placeholder-bwxt-text-muted
             focus:outline-none focus:border-bwxt-crimson focus:ring-1 focus:ring-bwxt-crimson
             resize-y

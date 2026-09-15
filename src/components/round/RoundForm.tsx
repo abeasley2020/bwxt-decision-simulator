@@ -137,6 +137,10 @@ export default function RoundForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // The submit button is aria-disabled rather than disabled (so it keeps
+    // focus and stays announceable while the request is in flight), which
+    // means the guard against a second submission has to live here.
+    if (submitting) return;
     setSubmitError(null);
 
     const validationErrors = validate(decisions, formState);
@@ -183,6 +187,10 @@ export default function RoundForm({
       }
 
       const data = (await res.json()) as { redirectTo: string };
+      // Refresh first so the server components re-read the round we just
+      // submitted; without it the client Router Cache can serve a payload
+      // prefetched before the mutation and bounce the participant back.
+      router.refresh();
       router.push(data.redirectTo);
     } catch {
       setSubmitError(
@@ -247,7 +255,10 @@ export default function RoundForm({
                     decisionRefs.current[decision.key] = el;
                   }}
                   tabIndex={-1}
-                  className="text-bwxt-navy font-semibold text-[16px] leading-snug mb-2 focus:outline-none"
+                  className="
+                    text-bwxt-navy font-semibold text-[16px] leading-snug mb-2 rounded
+                    focus:outline-none focus:ring-2 focus:ring-bwxt-crimson focus:ring-offset-2
+                  "
                 >
                   {decision.title}
                 </h3>
@@ -300,28 +311,35 @@ export default function RoundForm({
         <span className="sr-only">Asterisk indicates </span>Required
       </p>
 
-      {/* Submit */}
+      {/* Submit.
+          aria-disabled instead of disabled: a natively disabled button drops
+          focus to <body>, so the loading state change is never announced and
+          the user loses their place. The button stays focusable; the onClick
+          guard and the handleSubmit guard stop a second submission. */}
       <div className="mt-8">
         <button
           type="submit"
-          disabled={submitting}
-          aria-disabled={submitting}
-          className="
+          aria-disabled={submitting || undefined}
+          onClick={(e) => {
+            if (submitting) e.preventDefault();
+          }}
+          className={`
             bg-bwxt-navy hover:bg-bwxt-navy-dark text-white font-semibold text-[15px]
             rounded-[14px] py-[14px] w-full transition-colors duration-150
-            disabled:opacity-60 disabled:cursor-not-allowed
             focus:outline-none focus:ring-2 focus:ring-bwxt-navy focus:ring-offset-2
-          "
+            ${submitting ? "opacity-60 cursor-not-allowed hover:bg-bwxt-navy" : ""}
+          `}
         >
-          {submitting ? (
-            <span>
-              <span aria-hidden="true">Submitting&hellip;</span>
-              <span className="sr-only">Submitting your decisions, please wait.</span>
-            </span>
-          ) : (
-            "Submit Decisions"
-          )}
+          {submitting ? "Submitting…" : "Submit Decisions"}
         </button>
+
+        {/* Persistent status region. It is always mounted so assistive tech
+            has it registered before the text changes; mounting a live region
+            at the same moment its content appears announces nothing. */}
+        <p role="status" aria-live="polite" className="sr-only">
+          {submitting ? "Submitting your decisions, please wait." : ""}
+        </p>
+
         <p className="mt-3 text-[13px] text-center text-bwxt-text-muted">
           Your decisions are final once submitted and cannot be changed.
         </p>

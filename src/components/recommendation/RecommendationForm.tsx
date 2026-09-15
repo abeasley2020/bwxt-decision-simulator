@@ -8,8 +8,11 @@
  *
  * WCAG: every textarea has an associated <label>; error messages are
  * role="alert" so screen readers announce them immediately; required
- * fields use aria-required; invalid fields use aria-invalid;
- * submit button is disabled (and labelled) while loading.
+ * fields use aria-required; invalid fields use aria-invalid; textarea
+ * borders use bwxt.border-input so the control boundary clears 3:1
+ * (SC 1.4.11); the submit button uses aria-disabled plus a persistent
+ * status region while loading, so it keeps focus and the state change is
+ * actually announced.
  */
 
 import { useState } from "react";
@@ -104,6 +107,8 @@ export default function RecommendationForm({ runId }: Props) {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // The submit button is aria-disabled, not disabled, so it can still fire.
+    if (isSubmitting) return;
     setSubmitError(null);
 
     if (!validate()) return;
@@ -124,6 +129,9 @@ export default function RecommendationForm({ runId }: Props) {
 
       const body = (await res.json()) as { redirectTo?: string };
       if (body.redirectTo) {
+        // Refresh first so server components re-read the submitted
+        // recommendation before we navigate.
+        router.refresh();
         router.push(body.redirectTo);
       }
     } catch {
@@ -191,7 +199,7 @@ export default function RecommendationForm({ runId }: Props) {
                   ${
                     hasError
                       ? "border-bwxt-danger bg-bwxt-crimson-light/30"
-                      : "border-bwxt-border bg-white"
+                      : "border-bwxt-border-input bg-white"
                   }
                 `}
               />
@@ -219,20 +227,35 @@ export default function RecommendationForm({ runId }: Props) {
         </div>
       )}
 
+      {/* aria-disabled instead of disabled: a natively disabled button drops
+          focus to <body>, so the loading state change is never announced and
+          the user loses their place. No aria-label, because an aria-label that
+          does not contain the visible text breaks Label in Name (SC 2.5.3);
+          the loading state is carried by the status region below. */}
       <div className="mt-8 border-t border-bwxt-border pt-6">
         <button
           type="submit"
-          disabled={isSubmitting}
-          aria-label={isSubmitting ? "Submitting your recommendation…" : undefined}
-          className="
+          aria-disabled={isSubmitting || undefined}
+          onClick={(e) => {
+            if (isSubmitting) e.preventDefault();
+          }}
+          className={`
             w-full py-[14px] bg-bwxt-navy text-white font-semibold text-[15px]
             rounded-[14px] hover:bg-bwxt-navy-dark transition-colors duration-150
             focus:outline-none focus:ring-2 focus:ring-bwxt-navy focus:ring-offset-2
-            disabled:opacity-60 disabled:cursor-not-allowed
-          "
+            ${isSubmitting ? "opacity-60 cursor-not-allowed hover:bg-bwxt-navy" : ""}
+          `}
         >
           {isSubmitting ? "Submitting\u2026" : "Submit Executive Recommendation"}
         </button>
+
+        {/* Persistent status region. Always mounted so assistive tech has it
+            registered before the text changes; a live region mounted at the
+            same moment its content appears announces nothing. */}
+        <p role="status" aria-live="polite" className="sr-only">
+          {isSubmitting ? "Submitting your recommendation, please wait." : ""}
+        </p>
+
         <p className="mt-3 text-center text-[13px] text-bwxt-text-muted">
           This is your final submission. Your responses will be reviewed by
           faculty.

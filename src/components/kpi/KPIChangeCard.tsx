@@ -55,13 +55,16 @@ export default function KPIChangeCard({ label, before, after }: KPIChangeCardPro
         <span className="text-bwxt-text-muted text-[12px]">/ 100</span>
       </div>
 
-      {/* Delta badge — color + symbol + text (WCAG 1.4.1) */}
+      {/* Delta badge: color + symbol + text (WCAG 1.4.1).
+          role="img" is required for aria-label to be exposed. A bare <div>
+          resolves to role generic, where aria-label is dropped silently. */}
       <div
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[12px] font-semibold ${deltaColorClass}`}
+        role="img"
         aria-label={deltaLabel}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[12px] font-semibold ${deltaColorClass}`}
       >
         <span aria-hidden="true">{directionSymbol}</span>
-        <span>{deltaDisplay}</span>
+        <span aria-hidden="true">{deltaDisplay}</span>
       </div>
 
       {/* Progress bar — decorative, aria-hidden */}

@@ -4,8 +4,22 @@
  * MultiSelectDecision
  *
  * Renders a checkbox group for a multi_select decision.
- * WCAG: fieldset + legend; explicit label per checkbox; aria-invalid on error;
- * live selection counter via aria-live; error announced via role="alert".
+ *
+ * WCAG:
+ *  - fieldset + legend; the legend states the required condition in words,
+ *    because aria-required and aria-invalid are not supported on <fieldset>
+ *    (role group) and are dropped there. aria-invalid lives on each input;
+ *    aria-describedby is valid on the fieldset and stays there.
+ *  - Options past the maximum use aria-disabled rather than the disabled
+ *    attribute. A natively disabled control is removed from the
+ *    accessibility tree, so the "maximum reached" description it points at
+ *    could never be read and the option could not be reached by keyboard.
+ *    aria-disabled keeps it focusable and describable; an onChange guard
+ *    stops the selection.
+ *  - Unavailable options are dimmed with a background change, not opacity.
+ *    opacity-50 pushed the option label to 3.38:1 and its description to
+ *    2.23:1 against white, both below the 4.5:1 floor.
+ *  - One live region only (the selection counter).
  */
 
 import type { DecisionTemplate } from "@/engine/types";
@@ -26,6 +40,7 @@ export default function MultiSelectDecision({
   const groupId = `decision-${decision.key}`;
   const errorId = `${groupId}-error`;
   const counterId = `${groupId}-counter`;
+  const maxReachedId = `${groupId}-max-reached`;
 
   const min = decision.minChoices ?? 1;
   const max = decision.maxChoices ?? decision.options.length;
@@ -35,9 +50,12 @@ export default function MultiSelectDecision({
   const constraintLabel =
     min === max
       ? `Select exactly ${min} option${min !== 1 ? "s" : ""}`
-      : `Select ${min}–${max} options`;
+      : `Select ${min} to ${max} options`;
 
-  function handleChange(optionKey: string, checked: boolean) {
+  function handleChange(optionKey: string, checked: boolean, blocked: boolean) {
+    // The control is aria-disabled rather than disabled, so the guard has to
+    // live here: it stays focusable and describable but must not select.
+    if (blocked) return;
     if (checked) {
       if (atMax) return; // prevent selecting beyond max
       onChange([...value, optionKey]);
@@ -47,14 +65,13 @@ export default function MultiSelectDecision({
   }
 
   return (
-    <fieldset
-      aria-required={decision.isRequired}
-      aria-describedby={`${counterId}${error ? ` ${errorId}` : ""}`}
-      aria-invalid={error ? "true" : undefined}
-    >
-      <legend className="sr-only">{decision.title}</legend>
+    <fieldset aria-describedby={`${counterId}${error ? ` ${errorId}` : ""}`}>
+      <legend className="sr-only">
+        {decision.title}
+        {decision.isRequired ? ` (required, ${constraintLabel.toLowerCase()})` : ""}
+      </legend>
 
-      {/* Live selection counter */}
+      {/* Live selection counter: the one live region in this control */}
       <p
         id={counterId}
         aria-live="polite"
@@ -67,7 +84,7 @@ export default function MultiSelectDecision({
             : "text-bwxt-text-muted"
         }`}
       >
-        {count} of {max} selected &mdash; {constraintLabel}
+        {count} of {max} selected. {constraintLabel}.
       </p>
 
       <div className="space-y-2">
@@ -82,11 +99,13 @@ export default function MultiSelectDecision({
               htmlFor={inputId}
               className={`
                 flex items-start gap-3 p-4 rounded-xl border-2 transition-colors duration-100
-                ${isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
+                ${isDisabled ? "cursor-not-allowed" : "cursor-pointer"}
                 focus-within:ring-2 focus-within:ring-bwxt-crimson focus-within:ring-offset-1
                 ${
                   isSelected
                     ? "border-bwxt-crimson bg-bwxt-crimson-light"
+                    : isDisabled
+                    ? "border-bwxt-border bg-bwxt-bg"
                     : error && !isSelected
                     ? "border-bwxt-danger bg-white"
                     : "border-bwxt-border bg-white hover:border-bwxt-navy/30 hover:bg-bwxt-navy-light/50"
@@ -98,13 +117,20 @@ export default function MultiSelectDecision({
                 type="checkbox"
                 value={opt.key}
                 checked={isSelected}
-                disabled={isDisabled}
-                onChange={(e) => handleChange(opt.key, e.target.checked)}
+                aria-disabled={isDisabled || undefined}
+                onChange={(e) =>
+                  handleChange(opt.key, e.target.checked, isDisabled)
+                }
                 className="
-                  mt-0.5 h-4 w-4 text-bwxt-crimson border-bwxt-border rounded flex-shrink-0
+                  mt-0.5 h-4 w-4 text-bwxt-crimson border-bwxt-border-input rounded flex-shrink-0
                   focus:ring-2 focus:ring-bwxt-crimson focus:ring-offset-1 focus:outline-none
                 "
-                aria-describedby={isDisabled ? `${groupId}-max-reached` : undefined}
+                aria-invalid={error ? "true" : undefined}
+                aria-describedby={
+                  [isDisabled ? maxReachedId : "", error ? errorId : ""]
+                    .filter(Boolean)
+                    .join(" ") || undefined
+                }
               />
               <div className="min-w-0">
                 <span className="block font-semibold text-[15px] text-bwxt-navy leading-snug">
@@ -119,10 +145,12 @@ export default function MultiSelectDecision({
         })}
       </div>
 
-      {/* Hidden status message for screen readers when max is reached */}
+      {/* Description target for options that are currently unavailable.
+          Rendered whenever max is reached so aria-describedby can resolve. */}
       {atMax && (
-        <p id={`${groupId}-max-reached`} className="sr-only">
-          Maximum selections reached. Deselect an option to choose a different one.
+        <p id={maxReachedId} className="sr-only">
+          Unavailable. Maximum selections reached. Deselect an option to choose a
+          different one.
         </p>
       )}
 

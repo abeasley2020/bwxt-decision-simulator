@@ -252,7 +252,12 @@ export default function ReportView({ data }: Props) {
                       }}
                     />
                   </div>
+                  {/* role="img" is required for aria-label to be exposed.
+                      On a bare <div> the role resolves to generic and the
+                      label is dropped without warning. */}
                   <div
+                    role="img"
+                    aria-label={deltaText}
                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${
                       isPos
                         ? "text-bwxt-success bg-green-50 border-green-200"
@@ -260,7 +265,6 @@ export default function ReportView({ data }: Props) {
                         ? "text-bwxt-danger bg-bwxt-crimson-light border-bwxt-crimson/20"
                         : "text-bwxt-text-muted bg-bwxt-border/40 border-bwxt-border"
                     }`}
-                    aria-label={deltaText}
                     style={{
                       printColorAdjust: "exact",
                       WebkitPrintColorAdjust: "exact",
@@ -269,7 +273,7 @@ export default function ReportView({ data }: Props) {
                     <span aria-hidden="true">
                       {isPos ? "▲" : isNeg ? "▼" : "="}
                     </span>
-                    <span>
+                    <span aria-hidden="true">
                       {isPos ? `+${delta}` : isNeg ? `${delta}` : "0"}
                     </span>
                   </div>
@@ -349,18 +353,21 @@ export default function ReportView({ data }: Props) {
                             {val}
                             {idx > 0 && d !== 0 && (
                               <span
-                                className={`ml-1 text-[11px] ${
-                                  d > 0
-                                    ? "text-bwxt-success"
-                                    : "text-bwxt-danger"
-                                }`}
+                                role="img"
                                 aria-label={
                                   d > 0
                                     ? `increased by ${d}`
                                     : `decreased by ${Math.abs(d)}`
                                 }
+                                className={`ml-1 text-[11px] ${
+                                  d > 0
+                                    ? "text-bwxt-success"
+                                    : "text-bwxt-danger"
+                                }`}
                               >
-                                {d > 0 ? `▲${d}` : `▼${Math.abs(d)}`}
+                                <span aria-hidden="true">
+                                  {d > 0 ? `▲${d}` : `▼${Math.abs(d)}`}
+                                </span>
                               </span>
                             )}
                           </td>

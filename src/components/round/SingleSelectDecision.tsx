@@ -4,8 +4,15 @@
  * SingleSelectDecision
  *
  * Renders a radio-button group for a single_select decision.
- * WCAG: fieldset + legend; explicit label per radio; aria-invalid on error;
- * visible focus ring; error announced via role="alert".
+ * WCAG: fieldset + legend; explicit label per radio; visible focus ring;
+ * error announced via role="alert".
+ *
+ * aria-invalid and aria-required are not supported on role group (a bare
+ * <fieldset>) and are not supported on role radio either. Both belong on
+ * role radiogroup, so the fieldset carries that role and the two properties.
+ * The role override means the accessible name can no longer be assumed to
+ * come from <legend>, so aria-labelledby points at it explicitly. The
+ * required state is also stated in words in the legend.
  */
 
 import type { DecisionTemplate } from "@/engine/types";
@@ -25,14 +32,20 @@ export default function SingleSelectDecision({
 }: SingleSelectDecisionProps) {
   const groupId = `decision-${decision.key}`;
   const errorId = `${groupId}-error`;
+  const legendId = `${groupId}-legend`;
 
   return (
     <fieldset
-      aria-required={decision.isRequired}
-      aria-describedby={error ? errorId : undefined}
+      role="radiogroup"
+      aria-labelledby={legendId}
+      aria-required={decision.isRequired || undefined}
       aria-invalid={error ? "true" : undefined}
+      aria-describedby={error ? errorId : undefined}
     >
-      <legend className="sr-only">{decision.title}</legend>
+      <legend id={legendId} className="sr-only">
+        {decision.title}
+        {decision.isRequired ? " (required)" : ""}
+      </legend>
 
       <div className="space-y-2">
         {decision.options.map((opt) => {
@@ -63,8 +76,9 @@ export default function SingleSelectDecision({
                 value={opt.key}
                 checked={isSelected}
                 onChange={() => onChange(opt.key)}
+                required={decision.isRequired}
                 className="
-                  mt-0.5 h-4 w-4 text-bwxt-crimson border-bwxt-border cursor-pointer flex-shrink-0
+                  mt-0.5 h-4 w-4 text-bwxt-crimson border-bwxt-border-input cursor-pointer flex-shrink-0
                   focus:ring-2 focus:ring-bwxt-crimson focus:ring-offset-1 focus:outline-none
                 "
               />
