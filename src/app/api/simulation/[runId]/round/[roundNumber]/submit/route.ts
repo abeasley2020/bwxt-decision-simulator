@@ -39,9 +39,10 @@ const MAX_RATIONALE_LENGTH = 2000;
 
 export async function POST(
   request: Request,
-  { params }: { params: { runId: string; roundNumber: string } }
+  props: { params: Promise<{ runId: string; roundNumber: string }> }
 ) {
-  const supabase = createClient();
+  const params = await props.params;
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

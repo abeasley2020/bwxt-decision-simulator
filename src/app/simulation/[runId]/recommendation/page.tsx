@@ -23,11 +23,12 @@ import RecommendationForm from "@/components/recommendation/RecommendationForm";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 
 interface Props {
-  params: { runId: string };
+  params: Promise<{ runId: string }>;
 }
 
-export default async function RecommendationPage({ params }: Props) {
-  const supabase = createClient();
+export default async function RecommendationPage(props: Props) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const {
     data: { user },

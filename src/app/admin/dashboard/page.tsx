@@ -45,7 +45,7 @@ function formatDate(d: string | null): string {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function AdminDashboardPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 

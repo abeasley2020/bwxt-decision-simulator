@@ -94,11 +94,12 @@ const RATING_LABELS: Record<string, string> = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 interface Props {
-  params: { userId: string };
+  params: Promise<{ userId: string }>;
 }
 
-export default async function ParticipantDetailPage({ params }: Props) {
-  const supabase = createClient();
+export default async function ParticipantDetailPage(props: Props) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 

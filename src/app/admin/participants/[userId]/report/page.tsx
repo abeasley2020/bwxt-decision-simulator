@@ -19,15 +19,16 @@ import ReportView from "@/components/report/ReportView";
 import PrintButton from "@/components/report/PrintButton";
 
 interface Props {
-  params: { userId: string };
+  params: Promise<{ userId: string }>;
 }
 
 export const metadata: Metadata = {
   title: "BWXT Leadership Report",
 };
 
-export default async function AdminReportPage({ params }: Props) {
-  const supabase = createClient();
+export default async function AdminReportPage(props: Props) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const {
     data: { user },

@@ -47,12 +47,13 @@ const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function ReadinessPage({
-  params,
-}: {
-  params: { cohortId: string };
-}) {
-  const supabase = createClient();
+export default async function ReadinessPage(
+  props: {
+    params: Promise<{ cohortId: string }>;
+  }
+) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 

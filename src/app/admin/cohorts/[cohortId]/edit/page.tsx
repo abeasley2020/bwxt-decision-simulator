@@ -35,12 +35,13 @@ function toDatetimeLocalInput(d: string | null): string {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function EditCohortPage({
-  params,
-}: {
-  params: { cohortId: string };
-}) {
-  const supabase = createClient();
+export default async function EditCohortPage(
+  props: {
+    params: Promise<{ cohortId: string }>;
+  }
+) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 

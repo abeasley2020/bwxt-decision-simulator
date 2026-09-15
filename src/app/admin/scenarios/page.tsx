@@ -11,7 +11,7 @@ import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 import { firstOf } from "@/lib/supabase/relations";
 
 export default async function AdminScenariosPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },

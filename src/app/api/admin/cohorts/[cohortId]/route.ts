@@ -17,11 +17,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 
-export async function POST(
-  request: Request,
-  { params }: { params: { cohortId: string } }
-) {
-  const supabase = createClient();
+export async function POST(request: Request, props: { params: Promise<{ cohortId: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 

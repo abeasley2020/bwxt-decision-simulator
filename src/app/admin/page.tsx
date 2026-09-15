@@ -11,7 +11,7 @@ import { redirect } from "next/navigation";
 import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 
 export default async function AdminOverviewPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },

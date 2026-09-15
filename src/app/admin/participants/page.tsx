@@ -35,7 +35,7 @@ function statusLabel(status: string): string {
 }
 
 export default async function AdminParticipantsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },

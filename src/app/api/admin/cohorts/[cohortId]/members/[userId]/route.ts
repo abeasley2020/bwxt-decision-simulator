@@ -11,9 +11,10 @@ import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { cohortId: string; userId: string } }
+  props: { params: Promise<{ cohortId: string; userId: string }> }
 ) {
-  const supabase = createClient();
+  const params = await props.params;
+  const supabase = await createClient();
 
   // ── Auth ──────────────────────────────────────────────────────────────────
 

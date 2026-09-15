@@ -66,7 +66,7 @@ for (const round of IRON_HORIZON_VERSION.rounds) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function DecisionPatternsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 

@@ -61,12 +61,13 @@ type MemberRow = {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function CohortManagePage({
-  params,
-}: {
-  params: { cohortId: string };
-}) {
-  const supabase = createClient();
+export default async function CohortManagePage(
+  props: {
+    params: Promise<{ cohortId: string }>;
+  }
+) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 

@@ -26,11 +26,12 @@ import PreviewBanner from "@/components/simulation/PreviewBanner";
 import type { KPIValues, KPIKey } from "@/engine/types";
 
 interface Props {
-  params: { runId: string; roundNumber: string };
+  params: Promise<{ runId: string; roundNumber: string }>;
 }
 
-export default async function ConsequencePage({ params }: Props) {
-  const supabase = createClient();
+export default async function ConsequencePage(props: Props) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const {
     data: { user },

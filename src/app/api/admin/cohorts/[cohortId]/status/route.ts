@@ -22,11 +22,9 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   closed: [],
 };
 
-export async function POST(
-  request: Request,
-  { params }: { params: { cohortId: string } }
-) {
-  const supabase = createClient();
+export async function POST(request: Request, props: { params: Promise<{ cohortId: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 

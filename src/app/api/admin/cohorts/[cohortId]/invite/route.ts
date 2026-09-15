@@ -36,14 +36,12 @@ function generateTempPassword(): string {
   return `${randomBytes(18).toString("base64url")}Aa1!`;
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: { cohortId: string } }
-) {
+export async function POST(request: Request, props: { params: Promise<{ cohortId: string }> }) {
+  const params = await props.params;
   const cohortId = params.cohortId;
 
   // ── Verify caller is an authenticated admin ──────────────────────────────────
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

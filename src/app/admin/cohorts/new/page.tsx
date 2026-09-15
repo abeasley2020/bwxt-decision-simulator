@@ -17,7 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 
 export default async function NewCohortPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 

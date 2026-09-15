@@ -8,11 +8,12 @@ import { createClient } from "@/lib/supabase/server";
 import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 
 interface Props {
-  params: { cohortId: string };
+  params: Promise<{ cohortId: string }>;
 }
 
-export default async function FacultyCohortPage({ params }: Props) {
-  const supabase = createClient();
+export default async function FacultyCohortPage(props: Props) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const {
     data: { user },

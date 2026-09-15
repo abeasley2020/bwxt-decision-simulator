@@ -35,11 +35,12 @@ import SelfAssessmentForm from "@/components/orientation/SelfAssessmentForm";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 
 interface Props {
-  params: { runId: string };
+  params: Promise<{ runId: string }>;
 }
 
-export default async function OrientationPage({ params }: Props) {
-  const supabase = createClient();
+export default async function OrientationPage(props: Props) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const {
     data: { user },

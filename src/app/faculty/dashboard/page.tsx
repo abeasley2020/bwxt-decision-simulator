@@ -71,7 +71,7 @@ function formatDate(dateStr: string | null): string {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function FacultyDashboardPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 

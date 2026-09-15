@@ -18,11 +18,12 @@ import RoundForm from "@/components/round/RoundForm";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 
 interface Props {
-  params: { runId: string; roundNumber: string };
+  params: Promise<{ runId: string; roundNumber: string }>;
 }
 
-export default async function RoundPage({ params }: Props) {
-  const supabase = createClient();
+export default async function RoundPage(props: Props) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const {
     data: { user },

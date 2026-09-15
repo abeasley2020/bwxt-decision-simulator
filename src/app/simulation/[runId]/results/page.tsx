@@ -33,11 +33,12 @@ import { resolveRunProfile } from "@/lib/simulation/resolveRunProfile";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 
 interface Props {
-  params: { runId: string };
+  params: Promise<{ runId: string }>;
 }
 
-export default async function ResultsPage({ params }: Props) {
-  const supabase = createClient();
+export default async function ResultsPage(props: Props) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const {
     data: { user },

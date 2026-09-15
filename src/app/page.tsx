@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 
 export default async function RootPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

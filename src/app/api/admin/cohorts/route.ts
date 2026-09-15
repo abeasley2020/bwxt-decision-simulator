@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolvePublicUser } from "@/lib/auth/resolvePublicUser";
 
 export async function POST(request: Request) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 

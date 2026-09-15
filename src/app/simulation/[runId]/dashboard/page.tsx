@@ -26,7 +26,7 @@ import { resolveRunProfile } from "@/lib/simulation/resolveRunProfile";
 import PreviewBanner from "@/components/simulation/PreviewBanner";
 
 interface Props {
-  params: { runId: string };
+  params: Promise<{ runId: string }>;
 }
 
 // ── Label map for executive recommendation fields ──────────────────────────
@@ -41,8 +41,9 @@ const REC_FIELDS: Array<{ key: string; label: string }> = [
 
 // ─── Page ──────────────────────────────────────────────────────────────────
 
-export default async function ParticipantDashboardPage({ params }: Props) {
-  const supabase = createClient();
+export default async function ParticipantDashboardPage(props: Props) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const {
     data: { user },

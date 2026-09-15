@@ -49,7 +49,7 @@ const profileLabelMap = new Map(
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function ParticipantListPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 
