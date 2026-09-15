@@ -6,6 +6,7 @@
  */
 
 import type { KPIKey, KPIValues, KPIDefinition } from "./types";
+import { roundValue } from "./rounding";
 
 export const KPI_DEFINITIONS: Record<KPIKey, KPIDefinition> = {
   decision_velocity: {
@@ -89,7 +90,7 @@ export function applyKPIDelta(
   const next = current[key] + delta;
   return {
     ...current,
-    [key]: Math.min(def.maxValue, Math.max(def.minValue, next)),
+    [key]: roundValue(Math.min(def.maxValue, Math.max(def.minValue, next))),
   };
 }
 

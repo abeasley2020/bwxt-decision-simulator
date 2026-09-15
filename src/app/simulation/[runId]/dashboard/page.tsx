@@ -159,6 +159,15 @@ export default async function ParticipantDashboardPage({ params }: Props) {
   const finalKPIs = (r3KpiRes.data?.kpi_values_json ?? r2KPIs) as KPIValues;
   const finalScores = (finalScoreRes.data?.score_values_json ?? {}) as ScoreValues;
 
+  // A missing or errored round-3 score snapshot used to fall through as {},
+  // which reads as all-zero dimensions and matches the talent_blind_spot
+  // ceiling rule, permanently branding the participant on a failed read.
+  // Never assign or persist a profile from scores we did not actually load.
+  const finalScoresAvailable =
+    !("error" in finalScoreRes && finalScoreRes.error) &&
+    finalScoreRes.data?.score_values_json != null &&
+    Object.keys(finalScores).length > 0;
+
   // ── Profile assignment ───────────────────────────────────────────────────
 
   let assignedProfileKey: PerformanceProfileKey | null = null;
@@ -168,7 +177,7 @@ export default async function ParticipantDashboardPage({ params }: Props) {
       (p) => p.id === run.final_profile_id
     );
     assignedProfileKey = (match?.key as PerformanceProfileKey) ?? null;
-  } else {
+  } else if (finalScoresAvailable) {
     // final_profile_id not yet set — run assignment and persist
     const dbProfiles = dbProfilesRes.data ?? [];
     const dbRules = dbRulesRes.data ?? [];
@@ -295,6 +304,15 @@ export default async function ParticipantDashboardPage({ params }: Props) {
                   </p>
                 </div>
               </div>
+            </div>
+          ) : !finalScoresAvailable ? (
+            <div
+              role="alert"
+              className="bg-white border-2 border-bwxt-crimson rounded-xl p-6 text-[15px] text-bwxt-text-secondary leading-relaxed"
+            >
+              Your final scoring data could not be loaded, so no leadership
+              profile has been assigned. Your decisions are saved. Please
+              contact your program administrator so this can be resolved.
             </div>
           ) : (
             <div className="bg-white border border-bwxt-border rounded-xl p-6 text-center text-bwxt-text-muted text-[14px]">

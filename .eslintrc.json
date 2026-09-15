@@ -1,4 +1,6 @@
 {
   "extends": ["next/core-web-vitals"],
-  "ignorePatterns": ["public/walkthrough.html", ".next/", "node_modules/", "scripts/"]
+  "plugins": ["@typescript-eslint"],
+  "parser": "@typescript-eslint/parser",
+  "ignorePatterns": ["public/**", ".next/", "node_modules/", "scripts/"]
 }

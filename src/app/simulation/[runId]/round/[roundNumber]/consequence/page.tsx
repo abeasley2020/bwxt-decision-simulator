@@ -135,7 +135,10 @@ export default async function ConsequencePage({ params }: Props) {
     baselineSnap?.kpi_values_json ?? buildInitialKPIs()
   ) as KPIValues;
 
-  const updatedKPIs = roundEndData?.kpi_values_json as KPIValues | null;
+  // Optional chaining yields undefined (not null) when no row came back, so
+  // the hasKPIData check below silently passed and every KPI rendered as
+  // unchanged instead of surfacing the "data unavailable" state.
+  const updatedKPIs = (roundEndData?.kpi_values_json ?? null) as KPIValues | null;
 
   const deltas = updatedKPIs
     ? computeKPIDelta(baselineKPIs, updatedKPIs)

@@ -6,6 +6,7 @@
  */
 
 import type { ScoringDimensionKey, ScoreValues, ScoringDimension } from "./types";
+import { roundValue } from "./rounding";
 
 export const SCORING_DIMENSIONS: Record<ScoringDimensionKey, ScoringDimension> = {
   enterprise_judgment: {
@@ -65,7 +66,7 @@ export function applyScoreDelta(
 ): ScoreValues {
   return {
     ...current,
-    [key]: current[key] + delta,
+    [key]: roundValue(current[key] + delta),
   };
 }
 
