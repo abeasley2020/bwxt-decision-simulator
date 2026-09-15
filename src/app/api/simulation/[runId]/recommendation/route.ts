@@ -26,6 +26,8 @@ interface RecommendationBody {
   communicationApproach: string;
 }
 
+const MAX_FIELD_LENGTH = 10000;
+
 const REQUIRED_FIELDS: (keyof RecommendationBody)[] = [
   "prioritizedStrategy",
   "actionPlan90Day",
@@ -97,6 +99,14 @@ export async function POST(
     if (!body[field] || typeof body[field] !== "string" || !body[field].trim()) {
       return NextResponse.json(
         { error: `Field "${field}" is required and must not be empty` },
+        { status: 400 }
+      );
+    }
+    if (body[field].length > MAX_FIELD_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Field "${field}" must be at most ${MAX_FIELD_LENGTH} characters`,
+        },
         { status: 400 }
       );
     }

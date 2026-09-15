@@ -14,6 +14,7 @@
  * Requires SUPABASE_SERVICE_ROLE_KEY in environment.
  */
 
+import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
@@ -25,6 +26,15 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
+
+/**
+ * Generates a single-use temporary password for a newly provisioned account.
+ * 24 base64url characters (~144 bits of entropy) plus a fixed suffix so the
+ * value always satisfies Supabase's default complexity requirements.
+ */
+function generateTempPassword(): string {
+  return `${randomBytes(18).toString("base64url")}Aa1!`;
+}
 
 export async function POST(
   request: Request,
@@ -42,11 +52,23 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: callerRow } = await supabaseAdmin
+  // Resolve the caller by email — auth.users.id and public.users.id are not
+  // guaranteed to match for accounts provisioned before the invite-flow fix.
+  const { data: callerByEmail } = await supabaseAdmin
     .from("users")
     .select("role")
-    .eq("id", user.id)
+    .eq("email", (user.email ?? "").toLowerCase())
     .maybeSingle();
+
+  const callerRow =
+    callerByEmail ??
+    (
+      await supabaseAdmin
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle()
+    ).data;
 
   if (!callerRow || callerRow.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -73,7 +95,7 @@ export async function POST(
   }
 
   // ── STEP 1 — Find or create auth user ───────────────────────────────────────
-  console.log(`[invite] Step 1: looking up auth user for ${email}`);
+  console.log(`[invite] Step 1: looking up auth user`);
 
   const {
     data: { users: authUsers },
@@ -87,9 +109,10 @@ export async function POST(
 
   if (!authUser) {
     console.log(`[invite] Step 1: no auth account found — creating`);
+    const newPassword = generateTempPassword();
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password: "Welcome2024!",
+      password: newPassword,
       email_confirm: true,
     });
     if (error) {
@@ -97,7 +120,7 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     authUser = data.user;
-    tempPassword = "Welcome2024!";
+    tempPassword = newPassword;
     console.log(`[invite] Step 1: created auth user ${authUser.id}`);
   } else {
     console.log(`[invite] Step 1: found existing auth user ${authUser.id}`);
@@ -106,7 +129,7 @@ export async function POST(
   const authUserId = authUser.id;
 
   // ── STEP 2 — Find or create public.users record ──────────────────────────────
-  console.log(`[invite] Step 2: looking up public.users for ${email}`);
+  console.log(`[invite] Step 2: looking up public.users`);
 
   // Use ilike for the lookup so a row stored with stray capitalisation still
   // matches and we don't end up creating a duplicate.
@@ -241,7 +264,7 @@ export async function POST(
   }
 
   // ── STEP 5 — Return success ──────────────────────────────────────────────────
-  console.log(`[invite] Step 5: success for ${email}`);
+  console.log(`[invite] Step 5: success for user ${userId}`);
   return NextResponse.json({
     ok: true,
     existed: !!publicUser,
